@@ -3,7 +3,9 @@ import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+const BASE_URL = import.meta.env.MODE === "development" 
+  ? `http://${window.location.hostname}:5001`
+  : "/";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -12,6 +14,8 @@ export const useAuthStore = create((set, get) => ({
   isUpdatingProfile: false,
   isCheckingAuth: true,
   onlineUsers: [],
+  chatRequests: [],
+  acceptedRequests: [],
   socket: null,
 
   checkAuth: async () => {
@@ -97,8 +101,83 @@ export const useAuthStore = create((set, get) => ({
 
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
+      console.log("onlineUsers",userIds);
     });
+
+    // socket.on("sendChatRequest",({request,senderInfo})=>{
+    //   set((state) => {
+    //     console.log("Previous chatRequests:", state.chatRequests);
+    //     const newState = {
+    //       chatRequests: [...state.chatRequests, { ...request, senderInfo }]
+    //     };
+    //     console.log("New chatRequests in useAuthStore:", newState.chatRequests);
+    //     return newState;
+    //   });
+    // })
+
+    socket.on("sendChatRequest", (data) => {
+      console.log("Received sendChatRequest event:", data);
+      set((state) => {
+        console.log("Previous chatRequests:", state.chatRequests);
+        const newState = {
+          chatRequests: [...state.chatRequests, { ...data.request, senderInfo: data.senderInfo }],
+        };
+        console.log("Updated chatRequests in useAuthStore:", newState.chatRequests);
+        return newState;
+      });
+    });
+    socket.onAny((eventName, ...args) => {
+      console.log("Received event:", eventName, args);
+    });
+
+    socket.on("chatRequestResponse",({request})=>{
+      if(request.status==="accepted"){
+        set(state=>({
+          acceptedRequests:[...state.acceptedRequests,request],
+          chatRequests: state.chatRequests.filter(req=>req._id !== request._id)
+        }
+      ))
+
+      }else{
+        set(state=>({
+          chatRequests: state.chatRequests.filter(req=>req._id !== request._id)
+        }))
+      }
+    })
+
+
   },
+
+  sendChatRequest: async(receiverId)=>{
+    try {
+      const{socket,authUser}=get();
+      if(socket && authUser){
+        socket.emit('sendChatRequest',{
+          senderId:authUser._id,
+          receiverId}
+        )
+        console.log("sendChatRequest in useAuthStore",{senderId:authUser._id,receiverId});
+      }      
+    } catch (error) {
+      console.log("error in sendChatRequest:",error);
+    }
+  },
+
+  respondToChatRequest: async(requestId,status)=>{
+    try {
+        const {socket}=get();
+        if(socket){
+          socket.emit('respondToChatRequest',{
+            requestId,
+            status
+          })
+        }      
+    } catch (error) {
+      console.log("error in respondToChatRequest:",error);
+    }
+  },
+
+  
   disconnectSocket: () => {
     if (get().socket?.connected) get().socket.disconnect();
   },

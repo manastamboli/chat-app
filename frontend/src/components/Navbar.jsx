@@ -17,7 +17,7 @@ const Navbar = () => {
               <div className="size-10 rounded-xl bg-primary/15 flex items-center justify-center shadow-sm">
                 <MessageSquare className="w-5 h-5 text-primary" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight">Chatty</h1>
+              <h1 className="text-xl font-bold tracking-tight">BaatCheet</h1>
             </Link>
           </div>
 

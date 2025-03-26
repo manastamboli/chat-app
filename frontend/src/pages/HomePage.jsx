@@ -1,21 +1,50 @@
+import { useEffect, useCallback } from "react";
 import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 
 import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
 
 const HomePage = () => {
-  const { selectedUser } = useChatStore();
+  const { selectedUser, getUsers, subscribeToAllMessages } = useChatStore();
+  const { socket } = useAuthStore();
+
+  // Load user list and their messages when the page loads
+  useEffect(() => {
+    // Initial data load
+    getUsers(true);
+
+    // Set up real-time updates
+    const unsubscribe = subscribeToAllMessages();
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [getUsers, subscribeToAllMessages]);
+  
+  // Handle socket reconnection
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleConnect = () => {
+      console.log("Socket reconnected, refreshing data");
+      getUsers(true);
+    };
+    
+    socket.on("connect", handleConnect);
+    
+    return () => {
+      socket.off("connect", handleConnect);
+    };
+  }, [socket, getUsers]);
 
   return (
-    <div className="h-screen bg-base-200">
-      <div className="flex items-center justify-center pt-20 px-4">
-        <div className="bg-base-100 rounded-lg shadow-cl w-full max-w-6xl h-[calc(100vh-8rem)]">
-          <div className="flex h-full rounded-lg overflow-hidden">
-            <Sidebar />
-
-            {!selectedUser ? <NoChatSelected /> : <ChatContainer />}
-          </div>
+    <div className="h-screen bg-[#0B1623]">
+      <div className="flex h-full">
+        <div className="flex h-full w-full">
+          <Sidebar />
+          {!selectedUser ? <NoChatSelected /> : <ChatContainer />}
         </div>
       </div>
     </div>

@@ -1,15 +1,16 @@
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X, Smile, Phone, Video } from "lucide-react";
+import { Image, Send, X, Smile, Mic, Pin } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, selectedUser } = useChatStore();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -65,6 +66,24 @@ const MessageInput = () => {
     }
   };
 
+  const handleStartVoiceRecording = () => {
+    setIsRecording(!isRecording);
+    // To be implemented: voice recording functionality
+    if (!isRecording) {
+      console.log("Starting voice recording...");
+      toast.success("Voice recording started");
+    } else {
+      console.log("Stopping voice recording...");
+      toast.success("Voice recording stopped");
+    }
+  };
+
+  const handlePinChat = () => {
+    // To be implemented: pin chat functionality
+    console.log("Pin chat with", selectedUser?.fullName);
+    toast.success(`Pinned conversation with ${selectedUser?.fullName}`);
+  };
+
   return (
     <div className="p-4 bg-base-100 border-t border-base-300">
       {imagePreview && (
@@ -90,16 +109,20 @@ const MessageInput = () => {
       <div className="flex items-center gap-2">
         <div className="flex gap-1">
           <button 
-            className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80"
+            className={`btn btn-circle btn-sm ${isRecording ? 'bg-red-500 text-white' : 'bg-base-300 text-primary'} border-none hover:opacity-80`}
             type="button"
+            onClick={handleStartVoiceRecording}
+            title="Voice message"
           >
-            <Phone className="size-5 text-primary" />
+            <Mic className="size-5" />
           </button>
           <button 
             className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80"
             type="button"
+            onClick={handlePinChat}
+            title="Pin conversation"
           >
-            <Video className="size-5 text-primary" />
+            <Pin className="size-5 text-primary" />
           </button>
         </div>
 

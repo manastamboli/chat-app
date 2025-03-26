@@ -1,4 +1,4 @@
-import { Phone, Video, MoreVertical, Archive, UserX, Trash2 } from "lucide-react";
+import { Phone, Video, MoreVertical, Archive, UserX, Trash2, Pin } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useState, useRef, useEffect } from "react";
@@ -70,6 +70,22 @@ const ChatHeader = () => {
     console.log("Copied to clipboard:", `${selectedUser.fullName}#${userTag}`);
   };
 
+  const handlePinChat = () => {
+    // To be implemented: pin chat functionality
+    setShowContextMenu(false);
+    console.log("Pin chat with", selectedUser.fullName);
+  };
+
+  const handleStartVoiceCall = () => {
+    // To be implemented: voice call functionality
+    console.log("Starting voice call with", selectedUser.fullName);
+  };
+
+  const handleStartVideoCall = () => {
+    // To be implemented: video call functionality
+    console.log("Starting video call with", selectedUser.fullName);
+  };
+
   return (
     <div className="p-4 border-b border-base-300 bg-base-100">
       <div className="flex items-center justify-between">
@@ -103,10 +119,18 @@ const ChatHeader = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          <button className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80">
+          <button 
+            className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80"
+            title="Voice call"
+            onClick={handleStartVoiceCall}
+          >
             <Phone className="size-5 text-primary" />
           </button>
-          <button className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80">
+          <button 
+            className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80"
+            title="Video call"
+            onClick={handleStartVideoCall}
+          >
             <Video className="size-5 text-primary" />
           </button>
           <button className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80">
@@ -148,6 +172,15 @@ const ChatHeader = () => {
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
                 <span>Copy Username</span>
+              </button>
+            </li>
+            <li>
+              <button 
+                onClick={handlePinChat}
+                className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
+              >
+                <Pin className="size-4 text-primary" />
+                <span>Pin Conversation</span>
               </button>
             </li>
             <li>

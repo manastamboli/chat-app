@@ -13,6 +13,12 @@ export const useAuthStore = create((set, get) => ({
   isCheckingAuth: true,
   onlineUsers: [],
   socket: null,
+  
+  // Custom event dispatcher for UI navigation without using router
+  navigateTo: (destination, data = {}) => {
+    const event = new CustomEvent(destination, { detail: data });
+    window.dispatchEvent(event);
+  },
 
   checkAuth: async () => {
     try {

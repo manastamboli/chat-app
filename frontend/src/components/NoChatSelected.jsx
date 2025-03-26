@@ -21,25 +21,25 @@ const NoChatSelected = () => {
   };
   
   return (
-    <div className="w-full flex flex-1 flex-col items-center justify-center p-16 bg-[#0B1623]">
+    <div className="w-full flex flex-1 flex-col items-center justify-center p-16 bg-base-100">
       <div className="max-w-md text-center space-y-6">
         {/* Icon Display */}
         <div className="flex justify-center gap-4 mb-4">
           <div className="relative">
             <div
-              className="w-16 h-16 rounded-2xl bg-[#4B96F8]/10 flex items-center
+              className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center
              justify-center animate-pulse"
             >
-              <MessageSquare className="w-8 h-8 text-[#4B96F8]" />
+              <MessageSquare className="w-8 h-8 text-primary" />
             </div>
             {/* Add a decorative element */}
-            <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#4B96F8] animate-ping"></div>
+            <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-primary animate-ping"></div>
           </div>
         </div>
 
         {/* Welcome Text */}
-        <h2 className="text-2xl font-bold text-[#4B96F8]">Welcome to BaatCheet!</h2>
-        <p className="text-gray-400">
+        <h2 className="text-2xl font-bold text-primary">Welcome to BaatCheet!</h2>
+        <p className="text-base-content/70">
           Select a conversation from the sidebar or start a new chat
         </p>
         
@@ -47,14 +47,14 @@ const NoChatSelected = () => {
         <div className="mt-6 flex justify-center gap-3">
           <button 
             onClick={startRandomChat} 
-            className="btn bg-[#4B96F8] hover:bg-[#4B96F8]/90 text-white border-none"
+            className="btn bg-primary hover:bg-primary/90 text-primary-content border-none"
           >
             <MessageSquare size={18} className="mr-2" />
             Start Chatting
           </button>
           <button 
             onClick={handleAddFriend}
-            className="btn bg-[#1A2737] hover:bg-[#2A3747] text-[#4B96F8] border-none"
+            className="btn bg-base-300 hover:bg-base-300/80 text-primary border-none"
           >
             <UserPlus size={18} className="mr-2" />
             Add Friend
@@ -62,9 +62,9 @@ const NoChatSelected = () => {
         </div>
         
         {/* Tips section */}
-        <div className="mt-8 text-sm bg-[#1A2737] p-4 rounded-lg">
-          <h3 className="font-semibold mb-2 text-white">Quick Tips:</h3>
-          <ul className="text-left list-disc pl-5 space-y-1 text-gray-400">
+        <div className="mt-8 text-sm bg-base-300 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2">Quick Tips:</h3>
+          <ul className="text-left list-disc pl-5 space-y-1 text-base-content/70">
             <li>Switch between Messages, Friends and Archived chats using the tabs</li>
             <li>Search through your conversations with the search bar</li>
             <li>Add new friends with the add friend button in the Friends tab</li>

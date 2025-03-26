@@ -32,8 +32,8 @@ const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfile
           <div 
             className={`px-4 py-2 rounded-2xl ${
               isCurrentUser 
-                ? `bg-[#4B96F8] text-white rounded-br-none ${message.isOptimistic ? 'opacity-70' : ''}` 
-                : "bg-[#1A2737] text-white rounded-bl-none"
+                ? `bg-primary text-primary-content rounded-br-none ${message.isOptimistic ? 'opacity-70' : ''}` 
+                : "bg-base-300 text-base-content rounded-bl-none"
             }`}
           >
             {message.image && (
@@ -49,7 +49,7 @@ const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfile
             {message.text && <p>{message.text}</p>}
           </div>
           <span 
-            className="text-xs text-gray-400 mt-1 cursor-pointer"
+            className="text-xs text-base-content/60 mt-1 cursor-pointer"
             onClick={() => setShowFullTime(!showFullTime)}
           >
             {showFullTime 
@@ -155,7 +155,7 @@ const ChatContainer = () => {
 
   if (isMessagesLoading) {
     return (
-      <div className="flex-1 flex flex-col overflow-auto bg-[#0B1623]">
+      <div className="flex-1 flex flex-col overflow-auto bg-base-100">
         <ChatHeader />
         <MessageSkeleton />
         <MessageInput />
@@ -184,7 +184,7 @@ const ChatContainer = () => {
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto bg-[#0B1623]">
+    <div className="flex-1 flex flex-col overflow-auto bg-base-100">
       <ChatHeader />
 
       <div 
@@ -193,9 +193,9 @@ const ChatContainer = () => {
       >
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center p-6 bg-[#1A2737] rounded-lg">
-              <h3 className="font-medium text-lg text-white">No messages yet</h3>
-              <p className="text-sm text-gray-400">Start a conversation with {selectedUser?.fullName || 'this user'}</p>
+            <div className="text-center p-6 bg-base-300 rounded-lg">
+              <h3 className="font-medium text-lg">No messages yet</h3>
+              <p className="text-sm text-base-content/70">Start a conversation with {selectedUser?.fullName || 'this user'}</p>
             </div>
           </div>
         )}
@@ -204,9 +204,9 @@ const ChatContainer = () => {
           {sortedDates.map((date) => (
             <div key={date} className="space-y-4">
               <div className="relative flex py-2">
-                <div className="flex-grow border-t border-[#1A2737]"></div>
-                <span className="flex-shrink mx-4 text-xs text-gray-400">{date}</span>
-                <div className="flex-grow border-t border-[#1A2737]"></div>
+                <div className="flex-grow border-t border-base-300"></div>
+                <span className="flex-shrink mx-4 text-xs text-base-content/60">{date}</span>
+                <div className="flex-grow border-t border-base-300"></div>
               </div>
               
               {groupedMessages[date].map((message) => (
@@ -231,7 +231,7 @@ const ChatContainer = () => {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           onClick={scrollToBottom}
-          className={`btn btn-circle btn-sm ${hasNewMessages ? 'bg-red-500' : 'bg-[#4B96F8]'} text-white hover:bg-opacity-90 absolute bottom-20 right-6 shadow-lg ${hasNewMessages ? 'animate-pulse' : 'animate-bounce'}`}
+          className={`btn btn-circle btn-sm ${hasNewMessages ? 'bg-error' : 'bg-primary'} text-white hover:bg-opacity-90 absolute bottom-20 right-6 shadow-lg ${hasNewMessages ? 'animate-pulse' : 'animate-bounce'}`}
           aria-label="Scroll to bottom"
         >
           {hasNewMessages ? (

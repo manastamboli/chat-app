@@ -66,19 +66,19 @@ const MessageInput = () => {
   };
 
   return (
-    <div className="p-4 bg-[#0B1623] border-t border-[#1A2737]">
+    <div className="p-4 bg-base-100 border-t border-base-300">
       {imagePreview && (
         <div className="mb-3">
           <div className="relative inline-block">
             <img
               src={imagePreview}
               alt="Preview"
-              className="max-h-32 rounded-lg border border-[#1A2737]"
+              className="max-h-32 rounded-lg border border-base-300"
             />
             <button
               onClick={removeImage}
-              className="absolute -top-2 -right-2 size-6 rounded-full bg-[#1A2737] text-white
-              flex items-center justify-center hover:bg-[#2A3747] transition-colors"
+              className="absolute -top-2 -right-2 size-6 rounded-full bg-base-300 text-base-content
+              flex items-center justify-center hover:bg-base-300/80 transition-colors"
               type="button"
             >
               <X className="size-4" />
@@ -90,16 +90,16 @@ const MessageInput = () => {
       <div className="flex items-center gap-2">
         <div className="flex gap-1">
           <button 
-            className="btn btn-circle btn-sm bg-[#1A2737] border-none hover:bg-[#2A3747]"
+            className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80"
             type="button"
           >
-            <Phone className="size-5 text-[#4B96F8]" />
+            <Phone className="size-5 text-primary" />
           </button>
           <button 
-            className="btn btn-circle btn-sm bg-[#1A2737] border-none hover:bg-[#2A3747]"
+            className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80"
             type="button"
           >
-            <Video className="size-5 text-[#4B96F8]" />
+            <Video className="size-5 text-primary" />
           </button>
         </div>
 
@@ -108,10 +108,10 @@ const MessageInput = () => {
           onSubmit={handleSendMessage} 
           className="flex-1 flex items-center gap-2"
         >
-          <div className="flex-1 flex items-center gap-2 bg-[#1A2737] rounded-full px-4 py-2">
+          <div className="flex-1 flex items-center gap-2 bg-base-300 rounded-full px-4 py-2">
             <button
               type="button"
-              className="text-[#4B96F8] hover:text-[#4B96F8]/80 transition-colors"
+              className="text-primary hover:text-primary/80 transition-colors"
               onClick={() => fileInputRef.current?.click()}
             >
               <Image size={20} />
@@ -119,7 +119,7 @@ const MessageInput = () => {
             
             <input
               type="text"
-              className="flex-1 bg-transparent text-white placeholder-gray-400 focus:outline-none"
+              className="flex-1 bg-transparent text-base-content placeholder-base-content/50 focus:outline-none"
               placeholder="Type a message..."
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -128,7 +128,7 @@ const MessageInput = () => {
 
             <button
               type="button"
-              className="text-[#4B96F8] hover:text-[#4B96F8]/80 transition-colors"
+              className="text-primary hover:text-primary/80 transition-colors"
             >
               <Smile size={20} />
             </button>
@@ -144,7 +144,7 @@ const MessageInput = () => {
 
           <button
             type="submit"
-            className={`btn btn-circle btn-sm bg-[#4B96F8] text-white hover:bg-[#4B96F8]/90 disabled:bg-[#4B96F8]/50 ${isSending ? 'opacity-70' : ''}`}
+            className="btn btn-circle btn-sm bg-primary text-primary-content hover:bg-primary/90 disabled:bg-primary/50"
             disabled={(!text.trim() && !imagePreview) || isSending}
           >
             <Send size={18} className={isSending ? 'animate-pulse' : ''} />

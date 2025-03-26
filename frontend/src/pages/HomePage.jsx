@@ -40,7 +40,7 @@ const HomePage = () => {
   }, [socket, getUsers]);
 
   return (
-    <div className="h-screen bg-[#0B1623]">
+    <div className="h-screen bg-base-100">
       <div className="flex h-full">
         <div className="flex h-full w-full">
           <Sidebar />

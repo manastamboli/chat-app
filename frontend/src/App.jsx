@@ -18,8 +18,11 @@ const App = () => {
   const { theme } = useThemeStore();
   const { subscribeToAllMessages } = useChatStore();
 
-  console.log({ onlineUsers });
-
+  // Apply theme to the document root
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+  
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
@@ -46,7 +49,7 @@ const App = () => {
     );
 
   return (
-    <div data-theme={theme}>
+    <div>
       <Routes>
         <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
         <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />

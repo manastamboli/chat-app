@@ -7,8 +7,8 @@ import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
 
 const HomePage = () => {
-  const { selectedUser, getUsers, subscribeToAllMessages } = useChatStore();
-  const { socket } = useAuthStore();
+  const { selectedUser, getUsers, subscribeToAllMessages,getFriends,friends,getPendingRequests,pendingRequests } = useChatStore();
+  const { socket,acceptedRequests} = useAuthStore();
 
   // Load user list and their messages when the page loads
   useEffect(() => {
@@ -30,6 +30,11 @@ const HomePage = () => {
     const handleConnect = () => {
       console.log("Socket reconnected, refreshing data");
       getUsers(true);
+      console.log("acceptedRequests in HomePage",acceptedRequests);
+      getFriends();
+      console.log("friends in HomePage",friends);
+      getPendingRequests();
+      console.log("pendingRequests in HomePage",pendingRequests);
     };
     
     socket.on("connect", handleConnect);

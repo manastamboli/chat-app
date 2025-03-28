@@ -2,11 +2,14 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import CryptoJS from "crypto-js";
 
 export const useChatStore = create((set, get) => ({
   messages: [],
   allUserMessages: {}, // Store messages for all users
   users: [],
+  friends: [],
+  pendingRequests: [],
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
@@ -80,14 +83,102 @@ export const useChatStore = create((set, get) => ({
       set({ isMessagesLoading: false });
     }
   },
+
+  getFriends: async () => {
+    //const{friends}=get();
+    try {
+      const res=await axiosInstance.get('auth/getmyfreinds');
+      set({friends:res.data});
+      console.log("friends in useChatStore",res.data);
+      console.log("friends in useChatStore",get().friends);
+      console.log("res",res);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch friends");
+    }
+  },
+
+  getPendingRequests: async () => {
+    try {
+      const res=await axiosInstance.get('/auth/getpendingrequests');
+      set({pendingRequests:res.data});
+      console.log("getPendingRequests in useChatStore");
+      console.log("pendingRequests in useChatStore",res.data);
+      console.log("pendingRequests in useChatStore variable",get().pendingRequests);
+    } catch (error) {
+      console.log("Error in getPendingRequests",error.message);
+      toast.error(error.response?.data?.message || "Failed to fetch pending requests");
+    }
+  },
   
+  // sendMessage: async (messageData) => {
+  //   const { selectedUser, messages, authUser } = get();
+  //   const auth = useAuthStore.getState().authUser;
+    
+  //   if (!selectedUser || !auth) return;
+    
+  //   // Create optimistic message
+  //   const optimisticMessage = {
+  //     _id: Date.now().toString(), // Temporary ID
+  //     text: messageData.text || "",
+  //     image: messageData.image || null,
+  //     senderId: auth._id,
+  //     receiverId: selectedUser._id,
+  //     createdAt: new Date().toISOString(),
+  //     isOptimistic: true // Flag to identify optimistic updates
+  //   };
+    
+  //   // Update UI immediately with optimistic message (add to end for chronological order)
+  //   const newMessages = [...messages, optimisticMessage];
+  //   set({ 
+  //     messages: newMessages,
+  //     allUserMessages: {
+  //       ...get().allUserMessages,
+  //       [selectedUser._id]: newMessages
+  //     }
+  //   });
+    
+  //   try {
+  //     const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      
+  //     // Replace optimistic message with real one
+  //     const updatedMessages = get().messages.map(msg => 
+  //       msg.isOptimistic ? res.data : msg
+  //     );
+      
+  //     set({ 
+  //       messages: updatedMessages,
+  //       allUserMessages: {
+  //         ...get().allUserMessages,
+  //         [selectedUser._id]: updatedMessages
+  //       }
+  //     });
+      
+  //     return res.data;
+  //   } catch (error) {
+  //     // Remove optimistic message on error
+  //     const filteredMessages = get().messages.filter(msg => !msg.isOptimistic);
+  //     set({ 
+  //       messages: filteredMessages,
+  //       allUserMessages: {
+  //         ...get().allUserMessages,
+  //         [selectedUser._id]: filteredMessages
+  //       }
+  //     });
+      
+  //     toast.error(error.response?.data?.message || "Failed to send message");
+  //     throw error;
+  //   }
+  // },
+
+
   sendMessage: async (messageData) => {
-    const { selectedUser, messages, authUser } = get();
+    const { selectedUser, messages } = get();
     const auth = useAuthStore.getState().authUser;
-    
-    if (!selectedUser || !auth) return;
-    
-    // Create optimistic message
+    const socket = useAuthStore.getState().socket;
+  
+    if (!selectedUser || !auth || !socket) return;
+  
+    // Create optimistic UI update
     const optimisticMessage = {
       _id: Date.now().toString(), // Temporary ID
       text: messageData.text || "",
@@ -95,47 +186,55 @@ export const useChatStore = create((set, get) => ({
       senderId: auth._id,
       receiverId: selectedUser._id,
       createdAt: new Date().toISOString(),
-      isOptimistic: true // Flag to identify optimistic updates
+      isOptimistic: true
     };
-    
-    // Update UI immediately with optimistic message (add to end for chronological order)
-    const newMessages = [...messages, optimisticMessage];
-    set({ 
-      messages: newMessages,
+  
+    set({
+      messages: [...messages, optimisticMessage],
       allUserMessages: {
         ...get().allUserMessages,
-        [selectedUser._id]: newMessages
+        [selectedUser._id]: [...messages, optimisticMessage]
       }
     });
-    
+  
     try {
+      // Emit message via WebSocket
+      socket.emit("sendMessage", {
+        senderId: auth._id,
+        receiverId: selectedUser._id,
+        text: messageData.text,
+        image: messageData.image,
+        createdAt: new Date().toISOString()
+      });
+  
+      // Save message to database via API
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      
-      // Replace optimistic message with real one
+  
+      // Replace optimistic message with the real one from API
       const updatedMessages = get().messages.map(msg => 
         msg.isOptimistic ? res.data : msg
       );
-      
-      set({ 
+  
+      set({
         messages: updatedMessages,
         allUserMessages: {
           ...get().allUserMessages,
           [selectedUser._id]: updatedMessages
         }
       });
-      
+  
       return res.data;
     } catch (error) {
       // Remove optimistic message on error
       const filteredMessages = get().messages.filter(msg => !msg.isOptimistic);
-      set({ 
+      set({
         messages: filteredMessages,
         allUserMessages: {
           ...get().allUserMessages,
           [selectedUser._id]: filteredMessages
         }
       });
-      
+  
       toast.error(error.response?.data?.message || "Failed to send message");
       throw error;
     }
@@ -144,11 +243,17 @@ export const useChatStore = create((set, get) => ({
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
-
+    
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
-    const handleNewMessage = (newMessage) => {
+    const handleNewMessage = async(newMessage) => {
+      
+      const decryptText= CryptoJS.AES.decrypt(newMessage.text,'key')
+      const originalText=decryptText.toString(CryptoJS.enc.Utf8);
+      
+      console.log("originalText",originalText);
+
       const isMessageForSelectedUser = 
         newMessage.senderId === selectedUser._id || 
         newMessage.receiverId === selectedUser._id;

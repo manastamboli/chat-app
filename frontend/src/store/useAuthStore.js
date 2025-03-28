@@ -6,6 +6,8 @@ import { io } from "socket.io-client";
 const BASE_URL = import.meta.env.MODE === "development" 
   ? `http://${window.location.hostname}:5001`
   : "/";
+  
+// const BASE_URL = "172.16.245.78";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -17,6 +19,7 @@ export const useAuthStore = create((set, get) => ({
   chatRequests: [],
   acceptedRequests: [],
   socket: null,
+  
   
   // Custom event dispatcher for UI navigation without using router
   navigateTo: (destination, data = {}) => {
@@ -123,6 +126,9 @@ export const useAuthStore = create((set, get) => ({
 
     socket.on("sendChatRequest", (data) => {
       console.log("Received sendChatRequest event:", data);
+      const {chatRequests,acceptedRequests}=get();
+
+      
       set((state) => {
         console.log("Previous chatRequests:", state.chatRequests);
         const newState = {
@@ -143,7 +149,8 @@ export const useAuthStore = create((set, get) => ({
           chatRequests: state.chatRequests.filter(req=>req._id !== request._id)
         }
       ))
-
+      console.log("chatRequestResponse in useAuthStore",{request});
+      console.log("Accepted requests in useAuthStore",get().acceptedRequests);
       }else{
         set(state=>({
           chatRequests: state.chatRequests.filter(req=>req._id !== request._id)
@@ -177,7 +184,8 @@ export const useAuthStore = create((set, get) => ({
             requestId,
             status
           })
-        }      
+        }   
+        console.log("respondToChatRequest in useAuthStore",{requestId,status});   
     } catch (error) {
       console.log("error in respondToChatRequest:",error);
     }

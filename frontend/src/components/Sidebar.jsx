@@ -502,17 +502,26 @@ const ProfileDrawer = ({ isOpen, onClose, user, isUpdatingProfile }) => {
 };
 
 // Memoized contact component for better performance
-const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSelect, isArchived = false }) => {
+const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSelect, isArchived = false, isPendingRequest = false, requestId }) => {
+  // Add early return if user is undefined
+  if (!user) {
+    console.log("Contact component received undefined user");
+    return null;
+  }
+
   const { text, time, isYou, isImage, isSeen, isOptimistic } = messagePreview;
-  const isSelected = selectedUserId === user._id;
-  const isOnline = onlineUsers.includes(user._id);
+  const isSelected = selectedUserId === user?._id;
+  const isOnline = onlineUsers.includes(user?._id);
+  const { respondToChatRequest } = useAuthStore();
+  
+  console.log("Contact component props:", { user, isPendingRequest, requestId });
   
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const contextMenuRef = useRef(null);
 
   // Generate a unique 4-digit hashtag from user ID if not available
-  const userTag = user.tag || generateTagFromId(user._id);
+  const userTag = user?.tag || generateTagFromId(user?._id || '');
 
   // Function to generate a 4-digit tag from user ID
   function generateTagFromId(id) {
@@ -547,6 +556,18 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
     };
   }, [showContextMenu]);
 
+  const handleAcceptRequest = (e) => {
+    e.stopPropagation();
+    console.log("Accepting request:", requestId);
+    respondToChatRequest(requestId, "accepted");
+  };
+
+  const handleRejectRequest = (e) => {
+    e.stopPropagation();
+    console.log("Rejecting request:", requestId);
+    respondToChatRequest(requestId, "rejected");
+  };
+
   const handleArchive = (e) => {
     e.stopPropagation();
     // To be implemented: archive chat functionality
@@ -579,7 +600,7 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
   return (
     <>
       <motion.button
-        onClick={() => onSelect(user)}
+        onClick={() => !isPendingRequest && onSelect(user)}
         onContextMenu={handleRightClick}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
@@ -592,11 +613,11 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
       >
         <div className="relative">
           <img
-            src={user.profilePic || "/avatar.png"}
-            alt={user.fullName}
+            src={user?.profilePic || "/avatar.png"}
+            alt={user?.fullName || "User"}
             className="size-12 rounded-full object-cover ring-2 ring-base-300"
           />
-          {isOnline && !isArchived && (
+          {isOnline && !isArchived && !isPendingRequest && (
             <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-base-200" />
           )}
           {isArchived && (
@@ -604,12 +625,17 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
               <Archive size={8} className="text-white" />
             </span>
           )}
+          {isPendingRequest && (
+            <span className="absolute bottom-0 right-0 size-3 bg-yellow-500 rounded-full ring-2 ring-base-200 flex items-center justify-center">
+              <UserPlus size={8} className="text-white" />
+            </span>
+          )}
         </div>
 
         <div className="flex-1 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <span className="font-medium">{user.fullName}</span>
+              <span className="font-medium">{user?.fullName || "Unknown User"}</span>
               <span className="text-xxs bg-base-300 px-1 rounded font-mono text-primary">#{userTag}</span>
             </div>
             <span className="text-xs text-base-content/60">{time}</span>
@@ -638,6 +664,23 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
             </p>
           </div>
         </div>
+
+        {isPendingRequest && (
+          <div className="flex gap-1">
+            <button
+              onClick={handleAcceptRequest}
+              className="btn btn-sm btn-circle bg-primary hover:bg-primary/90 border-none"
+            >
+              <Check size={16} className="text-primary-content" />
+            </button>
+            <button
+              onClick={handleRejectRequest}
+              className="btn btn-sm btn-circle bg-base-300 hover:bg-base-300/80 border-none"
+            >
+              <X size={16} className="text-error" />
+            </button>
+          </div>
+        )}
       </motion.button>
 
       {/* Context Menu */}
@@ -654,7 +697,7 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
           {/* User name header */}
           <div className="px-3 py-2 font-medium border-b border-base-300 mb-1">
             <div className="flex items-center justify-between">
-              <span>{user.fullName}</span>
+              <span>{user?.fullName}</span>
               <span className="text-xs bg-base-300 px-1.5 py-0.5 rounded-md font-mono text-primary cursor-pointer" onClick={copyTagToClipboard}>
                 #{userTag}
               </span>
@@ -675,33 +718,37 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
                 <span>Copy Username</span>
               </button>
             </li>
-            <li>
-              <button 
-                onClick={handleArchive}
-                className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
-              >
-                <Archive className="size-4 text-primary" />
-                <span>Archive Chat</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                onClick={handleBlock}
-                className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
-              >
-                <UserX className="size-4 text-error" />
-                <span>Block User</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                onClick={handleClearChat}
-                className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
-              >
-                <Trash2 className="size-4 text-warning" />
-                <span>Clear Chat</span>
-              </button>
-            </li>
+            {!isPendingRequest && (
+              <>
+                <li>
+                  <button 
+                    onClick={handleArchive}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
+                  >
+                    <Archive className="size-4 text-primary" />
+                    <span>Archive Chat</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={handleBlock}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
+                  >
+                    <UserX className="size-4 text-error" />
+                    <span>Block User</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={handleClearChat}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors"
+                  >
+                    <Trash2 className="size-4 text-warning" />
+                    <span>Clear Chat</span>
+                  </button>
+                </li>
+              </>
+            )}
           </ul>
         </div>
       )}
@@ -718,6 +765,10 @@ const Friend = memo(({ user, onlineUsers, onStartChat }) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const contextMenuRef = useRef(null);
+
+  const handleAddFreind=()=>{
+
+  }
 
   // Generate a unique 4-digit hashtag from user ID if not available
   const userTag = user.tag || generateTagFromId(user._id);
@@ -888,11 +939,21 @@ Friend.displayName = "Friend";
 // Add Friend Form Component
 const AddFriendForm = ({ onClose }) => {
   const [email, setEmail] = useState("");
+  const {users,getUsers}=useChatStore();
+  const {authUser,sendChatRequest,acceptedRequests,onlineUsers}=useAuthStore();
   
   const handleSubmit = (e) => {
     e.preventDefault();
+    if(users.find(user=>user.email===email)){
+      
+     const User=users.find(user=>user.email===email);
+     sendChatRequest(User._id);
+
+    }
+
     // Here you would implement the actual friend request logic
     // For now we just close the form
+
     onClose();
   };
   
@@ -929,8 +990,8 @@ const AddFriendForm = ({ onClose }) => {
 };
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, getLatestMessage } = useChatStore();
-  const { onlineUsers, authUser, logout, isUpdatingProfile } = useAuthStore();
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, getLatestMessage, friends, getFriends, pendingRequests, getPendingRequests } = useChatStore();
+  const { onlineUsers, authUser, logout, isUpdatingProfile,respondToChatRequest} = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -968,12 +1029,44 @@ const Sidebar = () => {
     return () => clearInterval(intervalId);
   }, [getUsers]);
 
-  // Filter users based on search query
-  const filteredUsers = useMemo(() => 
-    users.filter(user => 
-      user.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Fetch friends when friends tab is active
+  useEffect(() => {
+    if (activeTab === "friends") {
+      getFriends();
+    }
+  }, [activeTab, getFriends]);
+
+  // Fetch pending requests when messages tab is active
+  useEffect(() => {
+    if (activeTab === "messages") {
+      console.log("Fetching pending requests...");
+      getPendingRequests();
+    }
+  }, [activeTab, getPendingRequests]);
+
+  // Filter pending requests based on search query
+  const filteredRequests = useMemo(() => {
+    console.log("Raw pendingRequests:", pendingRequests);
+    console.log("Search query:", searchQuery);
+    if (!Array.isArray(pendingRequests)) {
+      console.log("pendingRequests is not an array:", pendingRequests);
+      return [];
+    }
+    const filtered = pendingRequests.filter(request => {
+      console.log("Checking request:", request);
+      const senderName = request?.senderInfo?.fullName || request?.sender?.fullName || "";
+      return senderName.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+    console.log("Filtered requests:", filtered);
+    return filtered;
+  }, [pendingRequests, searchQuery]);
+
+  // Filter friends based on search query
+  const filteredFriends = useMemo(() => 
+    friends.filter(friend => 
+      friend.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
     ),
-    [users, searchQuery]
+    [friends, searchQuery]
   );
 
   // Get the latest message preview for each user
@@ -1004,21 +1097,21 @@ const Sidebar = () => {
     };
   };
 
-  // Sort users by most recent message
-  const sortedUsers = useMemo(() => {
-    return [...filteredUsers].sort((a, b) => {
-      const msgA = getLatestMessage(a._id);
-      const msgB = getLatestMessage(b._id);
-      
-      // If no messages, put at bottom
-      if (!msgA && !msgB) return 0;
-      if (!msgA) return 1;
-      if (!msgB) return -1;
-      
-      // Sort by timestamp
-      return new Date(msgB.createdAt) - new Date(msgA.createdAt);
+  // Sort pending requests by most recent
+  const sortedRequests = useMemo(() => {
+    console.log("Input to sorting:", filteredRequests);
+    if (!Array.isArray(filteredRequests)) {
+      console.log("filteredRequests is not an array:", filteredRequests);
+      return [];
+    }
+    const sorted = [...filteredRequests].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.created_at);
+      const dateB = new Date(b.createdAt || b.created_at);
+      return dateB - dateA;
     });
-  }, [filteredUsers, getLatestMessage]);
+    console.log("Sorted requests:", sorted);
+    return sorted;
+  }, [filteredRequests]);
 
   // Toggle profile drawer
   const toggleProfileDrawer = () => {
@@ -1135,6 +1228,7 @@ const Sidebar = () => {
           
           {activeTab === "messages" && (
             <motion.button 
+          
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="btn btn-circle btn-sm ml-2 bg-primary text-white hover:bg-primary/90 border-none"
@@ -1177,18 +1271,36 @@ const Sidebar = () => {
           {/* Messages Tab Content */}
           {activeTab === "messages" && (
             <>
-              {sortedUsers.map((user) => (
-                <Contact
-                  key={user._id}
-                  user={user}
-                  selectedUserId={selectedUser?._id}
-                  onlineUsers={onlineUsers}
-                  messagePreview={getLatestMessagePreview(user._id)}
-                  onSelect={setSelectedUser}
-                />
-              ))}
+              {console.log("Final sorted requests before render:", sortedRequests)}
+              {Array.isArray(sortedRequests) && sortedRequests.map((request) => {
+                console.log("Rendering individual request:", request);
+                // The sender info is directly in the request object
+                if (!request) {
+                  console.log("No request found");
+                  return null;
+                }
+                return (
+                  <Contact
+                    key={request._id}
+                    user={request}
+                    selectedUserId={selectedUser?._id}
+                    onlineUsers={onlineUsers}
+                    messagePreview={{
+                      text: "Sent you a friend request",
+                      time: formatMessageTime(request.createdAt || request.created_at),
+                      isYou: false,
+                      isImage: false,
+                      isSeen: false,
+                      isOptimistic: false
+                    }}
+                    onSelect={setSelectedUser}
+                    isPendingRequest={true}
+                    requestId={request._id}
+                  />
+                );
+              })}
 
-              {filteredUsers.length === 0 && (
+              {filteredRequests.length === 0 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1197,11 +1309,11 @@ const Sidebar = () => {
                   <div className="bg-base-300 size-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <MessageCircle className="size-8 opacity-50" />
                   </div>
-                  <h3 className="font-medium text-white mb-1">No messages found</h3>
+                  <h3 className="font-medium text-white mb-1">No pending requests</h3>
                   <p className="text-sm">
                     {searchQuery 
                       ? "Try a different search term" 
-                      : "Start a new conversation"}
+                      : "No friend requests yet"}
                   </p>
                 </motion.div>
               )}
@@ -1211,7 +1323,7 @@ const Sidebar = () => {
           {/* Friends Tab Content */}
           {activeTab === "friends" && (
             <>
-              {filteredUsers.map((user) => (
+              {filteredFriends.map((user) => (
                 <Friend
                   key={user._id}
                   user={user}
@@ -1220,7 +1332,7 @@ const Sidebar = () => {
                 />
               ))}
               
-              {filteredUsers.length === 0 && (
+              {filteredFriends.length === 0 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}

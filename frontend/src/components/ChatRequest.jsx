@@ -4,7 +4,7 @@ function ChatRequests() {
     const { chatRequests, respondToChatRequest } = useAuthStore();
     
     console.log("Current chat requests:", chatRequests); // Debug log
-
+    
     // If no requests, show a message
     if (!chatRequests || chatRequests.length === 0) {
         return (

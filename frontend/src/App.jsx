@@ -10,7 +10,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
 import { useChatStore } from "./store/useChatStore";
 import { useThemeStore } from "./store/useThemeStore";
-import { useChatStore } from "./store/useChatStore";
+
 import { useEffect } from "react";
 
 import { Loader } from "lucide-react";

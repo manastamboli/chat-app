@@ -2,6 +2,7 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
+import ChatRequest from "../models/chatRequest.js";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -116,3 +117,72 @@ export const checkAuth = (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+// export const getMyFriends=async(req,res)=>{
+//   try {
+//      const userid=req.user;
+     
+//      const chatRequests=await ChatRequest.find({sender:userid});
+//      console.log("chatRequests",chatRequests);
+//      if(chatRequests.status=='accepted'){
+//       console.log("if executed");
+//       const friends=chatRequests.map(request=>request.receiver);
+//       return res.status(200).json(friends);
+//      }
+//      else{
+//       return res.status(200).json([]);
+//      }
+     
+//   } catch (error) {
+//     console.log("Error in getMyFriends controller", error.message);
+//     return res.status(500).json({ message: "Internal Server Error" });
+//   }
+// }
+
+export const getMyFriends = async (req, res) => {
+  try {
+    const userid = req.user;
+
+    // Get all chat requests where the user is the sender
+    const chatRequests = await ChatRequest.find({ sender: userid });
+    console.log("chatRequests", chatRequests);
+
+    // Filter requests that have status 'accepted'
+    const acceptedRequests = chatRequests.filter(request => request.status === 'accepted');
+
+    if (acceptedRequests.length > 0) {
+      console.log("if executed");
+      const friends = acceptedRequests.map(request => request.receiver);
+      const myfreinds=await User.find({_id:{$in:friends}});
+      console.log("friends",myfreinds);
+      return res.status(200).json(myfreinds);
+    } else {
+      return res.status(200).json([]);
+    }
+  } catch (error) {
+    console.log("Error in getMyFriends controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getPendingRequests=async(req,res)=>{
+  try {
+    console.log("getPendingRequests controller executed");
+    const userid=req.user;
+    const pendingRequest=await ChatRequest.find({receiver:userid,status:'pending'}).catch((err)=>{
+      console.log("Error in getPendingRequests model", err.message);
+      return res.status(500).json({ message: "Internal Server Error" });
+    });
+    if(!pendingRequest){
+      return res.status(200).json([]);
+    }
+    else{
+      const pendingRequests=pendingRequest.map(request=>request.sender);
+      const pendingUsers=await User.find({_id:{$in:pendingRequests}});
+      return res.status(200).json(pendingUsers);
+    }
+  } catch (error) {
+    console.log("Error in getPendingRequests controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+}

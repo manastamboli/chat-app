@@ -3,8 +3,11 @@ import http from "http";
 import express from "express";
 import ChatRequest from "../models/chatRequest.js";
 import User from "../models/user.model.js";
+import CryptoJS from "crypto-js";
 const app = express();
 const server = http.createServer(app);
+import dotenv from "dotenv";
+dotenv.config();
 
 const io = new Server(server, {
   cors: {
@@ -22,7 +25,7 @@ export function getReceiverSocketId(userId) {
 
 
 // used to store online users
-const userSocketMap = {}; // {userId: socketId}
+const userSocketMap = {}; 
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
@@ -80,8 +83,9 @@ io.on("connection", (socket) => {
           {status},
           {new:true}
         ).populate('sender receiver')
-
         
+        console.log("request",request);
+        console.log("chatRequestResponse event emitted:",{request});  
         io.to(request.receiver._id.toString()).emit('chatRequestResponse',{request});
         io.to(request.sender._id.toString()).emit('chatRequestResponse',{request});
           
@@ -97,6 +101,26 @@ io.on("connection", (socket) => {
   // io.emit() is used to send events to all the connected clients
   io.emit("getOnlineUsers",Object.keys(userSocketMap));
 
+  socket.on("sendMessage", async ({ senderId, receiverId, text, image }) => {
+    console.log(`Message from ${senderId} to ${receiverId}:`, text);
+   const encyptText=await CryptoJS.AES.encrypt(text,"key").toString();
+    const newMessage = {
+      senderId,
+      receiverId,
+      text:encyptText,
+      image,
+      createdAt: new Date().toISOString(),
+    };
+  
+    // Find receiver socket ID
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+      console.log(`Message delivered to ${receiverSocketId}`);
+    } else {
+      console.log(`User ${receiverId} is offline, message not delivered in real-time.`);
+    }
+  });
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     delete userSocketMap[userId];

@@ -15,17 +15,17 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Basic validation
     const errors = {};
     if (!formData.email) errors.email = "Email is required";
     if (!formData.password) errors.password = "Password is required";
-    
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-    
+
     login(formData);
   };
 
@@ -34,17 +34,21 @@ const LoginPage = () => {
       {/* Left Side - Form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
-          {/* Logo */}
+          {/* LOGO */}
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-              <div
-                className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20
-              transition-colors"
-              >
-                <MessageSquare className="w-6 h-6 text-primary" />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center">
+                  <div className="size-4 bg-yellow-400 rotate-45"></div>
+                  <div className="size-4 bg-blue-400 rounded-full ml-1"></div>
+                  <div className="size-4 bg-indigo-600 rounded-t-full ml-1"></div>
+                </div>
+                <span className="text-2xl font-bold">scf.</span>
               </div>
               <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
-              <p className="text-base-content/60">Sign in to your account</p>
+              <p className="text-base-content/60">
+                Sign in to continue to your account
+              </p>
             </div>
           </div>
 
@@ -60,15 +64,21 @@ const LoginPage = () => {
                 </div>
                 <input
                   type="email"
-                  className={`input input-bordered w-full pl-10 ${formErrors.email ? 'input-error' : ''}`}
+                  className={`input input-bordered w-full pl-10 ${
+                    formErrors.email ? "input-error" : ""
+                  }`}
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => {
                     setFormData({ ...formData, email: e.target.value });
-                    setFormErrors({ ...formErrors, email: '' });
+                    setFormErrors({ ...formErrors, email: "" });
                   }}
                 />
-                {formErrors.email && <div className="text-error text-sm mt-1">{formErrors.email}</div>}
+                {formErrors.email && (
+                  <div className="text-error text-sm mt-1">
+                    {formErrors.email}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -82,19 +92,20 @@ const LoginPage = () => {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  className={`input input-bordered w-full pl-10 ${formErrors.password ? 'input-error' : ''}`}
+                  className={`input input-bordered w-full pl-10 ${
+                    formErrors.password ? "input-error" : ""
+                  }`}
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => {
                     setFormData({ ...formData, password: e.target.value });
-                    setFormErrors({ ...formErrors, password: '' });
+                    setFormErrors({ ...formErrors, password: "" });
                   }}
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
+                  onClick={() => setShowPassword(!showPassword)}>
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-base-content/40" />
                   ) : (
@@ -104,7 +115,10 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full" disabled={isLoggingIn}>
+            <button
+              type="submit"
+              className="btn btn-primary w-full"
+              disabled={isLoggingIn}>
               {isLoggingIn ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -114,13 +128,11 @@ const LoginPage = () => {
                 "Sign in"
               )}
             </button>
-            
+
             {error && (
-              <div className="text-error text-sm mt-2 text-center">
-                {error}
-              </div>
+              <div className="text-error text-sm mt-2 text-center">{error}</div>
             )}
-            
+
             <div className="text-right">
               <Link to="/forgot-password" className="link link-primary text-sm">
                 Forgot password?
@@ -142,7 +154,9 @@ const LoginPage = () => {
       {/* Right Side - Image/Pattern */}
       <AuthImagePattern
         title={"Welcome back!"}
-        subtitle={"Sign in to continue your conversations and catch up with your messages."}
+        subtitle={
+          "Sign in to continue your conversations and catch up with your messages."
+        }
       />
     </div>
   );

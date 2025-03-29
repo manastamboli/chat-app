@@ -1,9 +1,11 @@
 import { create } from "zustand";
 
-export const useThemeStore = create((set) => ({
-  theme: localStorage.getItem("baatcheet-theme") || "coffee",
+const useThemeStore = create((set) => ({
+  theme: localStorage.getItem("scf-theme") || "coffee",
   setTheme: (theme) => {
-    localStorage.setItem("baatcheet-theme", theme);
+    localStorage.setItem("scf-theme", theme);
     set({ theme });
   },
 }));
+
+export { useThemeStore };

@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --gradient-blue: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-blue-hover: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+}
+
+body {
+  @apply bg-black text-white min-h-screen;
+}
+
+.gradient-blue {
+  background: var(--gradient-blue);
+  transition: all 0.3s ease;
+}
+
+.gradient-blue:hover {
+  background: var(--gradient-blue-hover);
+  transform: translateY(-1px);
+}
+
+.card {
+  @apply bg-gray-900 rounded-lg p-6 shadow-lg border border-gray-800;
+}
+
+.input-field {
+  @apply bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.button-primary {
+  @apply gradient-blue text-white font-semibold py-2 px-4 rounded-lg shadow-lg;
+}
+
+.button-secondary {
+  @apply bg-gray-800 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:bg-gray-700 transition-colors;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}

@@ -10,18 +10,23 @@ import { formatMessageTime, formatDetailedMessageTime } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Memoized Message component for better performance
-const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfilePic }) => {
+const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfilePic, isGroup, senderName }) => {
   const [showFullTime, setShowFullTime] = useState(false);
   
   // Decrypt message text if it exists
   let decryptedText = "";
   try {
     if (message.text) {
-      decryptedText = CryptoJS.AES.decrypt(message.text, "key").toString(CryptoJS.enc.Utf8);
+      // Only decrypt if the message is encrypted
+      if (message.text.includes('/')) {
+        decryptedText = CryptoJS.AES.decrypt(message.text, "key").toString(CryptoJS.enc.Utf8);
+      } else {
+        decryptedText = message.text; // For group messages that aren't encrypted
+      }
     }
   } catch (error) {
     console.error("Error decrypting message:", error);
-    decryptedText = "[Decryption error]";
+    decryptedText = message.text || "[Decryption error]";
   }
   
   return (
@@ -41,6 +46,12 @@ const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfile
           />
         </div>
         <div className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}>
+          {/* Show sender name for group messages if not the current user */}
+          {isGroup && !isCurrentUser && (
+            <span className="text-xs font-medium text-primary mb-1">
+              {message.senderName || senderName || "Unknown"}
+            </span>
+          )}
           <div 
             className={`px-4 py-2 rounded-2xl ${
               isCurrentUser 
@@ -94,6 +105,9 @@ const ChatContainer = () => {
   const prevMessagesLengthRef = useRef(0);
   const [hasScrolledUp, setHasScrolledUp] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  
+  // Check if selected user is a group
+  const isGroup = selectedUser?.isGroup || false;
 
   // Fetch messages when selected user changes
   useEffect(() => {
@@ -195,6 +209,13 @@ const ChatContainer = () => {
     new Date(a) - new Date(b)
   );
 
+  // Find sender names for group messages
+  const findSenderName = (senderId) => {
+    if (!isGroup || !selectedUser?.members) return "";
+    const sender = selectedUser.members.find(member => member._id === senderId);
+    return sender?.fullName || "";
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-auto bg-base-100">
       <ChatHeader />
@@ -207,7 +228,12 @@ const ChatContainer = () => {
           <div className="flex items-center justify-center h-full">
             <div className="text-center p-6 bg-base-300 rounded-lg">
               <h3 className="font-medium text-lg">No messages yet</h3>
-              <p className="text-sm text-base-content/70">Start a conversation with {selectedUser?.fullName || 'this user'}</p>
+              <p className="text-sm text-base-content/70">
+                {isGroup 
+                  ? `Start a conversation in ${selectedUser?.name || 'this group'}`
+                  : `Start a conversation with ${selectedUser?.fullName || 'this user'}`
+                }
+              </p>
             </div>
           </div>
         )}
@@ -228,6 +254,8 @@ const ChatContainer = () => {
                   isCurrentUser={message.senderId === authUser?._id}
                   userProfilePic={authUser?.profilePic || "/avatar.png"}
                   otherUserProfilePic={selectedUser?.profilePic || "/avatar.png"}
+                  isGroup={isGroup}
+                  senderName={findSenderName(message.senderId)}
                 />
               ))}
             </div>

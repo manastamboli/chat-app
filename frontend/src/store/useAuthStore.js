@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { useChatStore } from "./useChatStore.js";
 
 const BASE_URL = import.meta.env.MODE === "development" 
   ? `http://${window.location.hostname}:5001`
@@ -73,6 +74,16 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await axiosInstance.post("/auth/logout");
+      
+      // Clear all group data from localStorage for privacy
+      const chatStore = useChatStore.getState();
+      if (chatStore.clearGroupData) {
+        chatStore.clearGroupData();
+      } else {
+        // Fallback if the function doesn't exist
+        localStorage.removeItem('baatcheet-groups');
+      }
+      
       set({ authUser: null });
       toast.success("Logged out successfully");
       get().disconnectSocket();
@@ -104,20 +115,52 @@ export const useAuthStore = create((set, get) => ({
 
   connectSocket: () => {
     const { authUser } = get();
-    if (!authUser || get().socket?.connected) return;
+    if (!authUser) {
+      console.log("Cannot connect socket - no authenticated user");
+      return;
+    }
+    
+    if (get().socket?.connected) {
+      console.log("Socket already connected, not reconnecting");
+      return;
+    }
 
+    console.log("Connecting socket for user:", authUser._id);
+    
     const socket = io(BASE_URL, {
       query: {
         userId: authUser._id,
       },
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000
     });
-    socket.connect();
-
+    
+    // Set socket before connecting to ensure it's available
     set({ socket: socket });
+    
+    // Add connection event handlers
+    socket.on("connect", () => {
+      console.log("Socket connected successfully with ID:", socket.id);
+    });
+    
+    socket.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+    });
+    
+    socket.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
+    });
+    
+    socket.on("reconnect", (attemptNumber) => {
+      console.log("Socket reconnected after", attemptNumber, "attempts");
+    });
+    
+    socket.connect();
 
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
-      console.log("onlineUsers",userIds);
+      console.log("Online users updated, count:", userIds.length);
     });
 
     // socket.on("sendChatRequest",({request,senderInfo})=>{

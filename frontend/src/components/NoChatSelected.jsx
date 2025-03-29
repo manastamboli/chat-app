@@ -1,16 +1,32 @@
 import { MessageSquare, UserPlus } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
+import toast from "react-hot-toast";
 
 const NoChatSelected = () => {
-  const { setSelectedUser, users } = useChatStore();
-  const { navigateTo } = useAuthStore(); // This will be added to authStore later
+  const { setSelectedUser, users, friends, getFriends } = useChatStore();
+  const { navigateTo } = useAuthStore();
   
-  // Function to start a random chat for demonstration
-  const startRandomChat = () => {
-    if (users.length > 0) {
-      const randomUser = users[Math.floor(Math.random() * users.length)];
-      setSelectedUser(randomUser);
+  // Function to start a chat with an added friend
+  const startRandomChat = async () => {
+    try {
+      // First, get the latest friends list
+      await getFriends();
+      
+      // Set active tab to friends (this triggers the UI change in Sidebar)
+      navigateTo('showFriendsTab');
+      
+      // If there are friends available, select the first one to start a chat
+      if (friends && friends.length > 0) {
+        // The friends array already contains only added friends from the backend
+        setSelectedUser(friends[0]);
+      } else {
+        // If no friends are available, show a toast message
+        toast.error("You don't have any friends yet. Add friends to start chatting!");
+      }
+    } catch (error) {
+      console.error("Error starting chat:", error);
+      toast.error("Couldn't load friends. Please try again.");
     }
   };
 

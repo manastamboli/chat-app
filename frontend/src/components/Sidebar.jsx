@@ -29,6 +29,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { formatMessageTime } from "../lib/utils";
 import { Link } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 // DrawingCanvas component taken from ProfilePage.jsx
 const DrawingCanvas = ({ initialImage, onSave, onCancel }) => {
@@ -1116,6 +1117,289 @@ const AddFriendForm = ({ onClose }) => {
   );
 };
 
+// Create Group Drawer Component
+const CreateGroupDrawer = ({ isOpen, onClose, setActiveTab }) => {
+  const { friends, addGroup } = useChatStore();
+  const { authUser } = useAuthStore();
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [groupName, setGroupName] = useState("");
+  const [searchFriends, setSearchFriends] = useState("");
+  
+  // Debug log to verify addGroup function exists
+  console.log("addGroup function exists:", typeof addGroup === "function");
+  
+  const filteredFriends = useMemo(() => 
+    friends.filter(friend => 
+      friend.fullName?.toLowerCase().includes(searchFriends.toLowerCase())
+    ),
+    [friends, searchFriends]
+  );
+  
+  const handleToggleFriend = (friendId) => {
+    if (selectedFriends.includes(friendId)) {
+      setSelectedFriends(selectedFriends.filter(id => id !== friendId));
+    } else {
+      setSelectedFriends([...selectedFriends, friendId]);
+    }
+  };
+  
+  const handleCreateGroup = () => {
+    if (groupName.trim() === "") {
+      // Could add a toast notification here
+      console.error("Group name cannot be empty");
+      return;
+    }
+    
+    if (selectedFriends.length === 0) {
+      // Could add a toast notification here
+      console.error("Select at least one friend");
+      return;
+    }
+    
+    // Create group object
+    const selectedFriendsData = friends.filter(friend => selectedFriends.includes(friend._id));
+    
+    console.log("Creating new group with name:", groupName);
+    console.log("Selected friends for group:", selectedFriendsData);
+    
+    // Add yourself to the group members
+    const allMembers = [
+      // Add the current user first
+      {
+        _id: authUser._id,
+        fullName: authUser.fullName,
+        email: authUser.email,
+        profilePic: authUser.profilePic
+      },
+      // Then add the selected friends
+      ...selectedFriendsData
+    ];
+    
+    const newGroup = {
+      _id: `group_${Date.now()}`,
+      isGroup: true,
+      name: groupName,
+      members: allMembers,
+      createdBy: authUser._id,
+      lastMessage: {
+        text: "Group created",
+        createdAt: new Date().toISOString(),
+        seen: true
+      },
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log("New group object:", newGroup);
+    
+    try {
+      // Reset form and close modal first
+      setGroupName("");
+      setSelectedFriends([]);
+      onClose();
+      
+      // Switch to groups tab
+      setActiveTab("groups");
+      
+      // Add slight delay to ensure UI updates before adding group
+      setTimeout(() => {
+        // Add group to the store
+        if (typeof addGroup === "function") {
+          addGroup(newGroup);
+          console.log("Group added successfully");
+        } else {
+          console.error("addGroup function is not available");
+        }
+        
+        // Select the newly created group to open it in the chat
+        const chatStore = useChatStore.getState();
+        console.log("Chat store state after group creation:", chatStore);
+        chatStore.setSelectedUser(newGroup);
+      }, 50);
+    } catch (error) {
+      console.error("Error creating group:", error);
+    }
+  };
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-base-200 rounded-xl w-full max-w-sm shadow-xl overflow-hidden"
+      >
+        <div className="p-4 flex items-center justify-between border-b border-base-300">
+          <h3 className="font-medium">Create New Group</h3>
+          <button 
+            onClick={onClose}
+            className="btn btn-circle btn-sm bg-base-300 hover:bg-base-300/80 border-none"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        
+        <div className="p-4 space-y-4">
+          {/* Group Name Input */}
+          <div>
+            <label className="text-sm text-base-content/70 mb-1 block">Group Name</label>
+            <input
+              type="text"
+              placeholder="Enter group name"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="w-full bg-base-300/50 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-primary/50 border-none"
+            />
+          </div>
+          
+          {/* Friend Search */}
+          <div>
+            <label className="text-sm text-base-content/70 mb-1 block">Add Friends</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search friends..."
+                value={searchFriends}
+                onChange={(e) => setSearchFriends(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 bg-base-300/50 rounded-lg text-sm 
+                focus:outline-none focus:ring-1 focus:ring-primary/40 
+                placeholder:text-gray-500 border-none"
+              />
+            </div>
+          </div>
+          
+          {/* Selected Friends Counter */}
+          {selectedFriends.length > 0 && (
+            <div className="bg-base-300/50 rounded-lg px-3 py-2 text-sm">
+              <span className="font-medium">{selectedFriends.length}</span> friend{selectedFriends.length !== 1 && 's'} selected
+            </div>
+          )}
+          
+          {/* Friends List */}
+          <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+            {filteredFriends.length === 0 ? (
+              <div className="text-center py-6 text-base-content/60 text-sm">
+                No friends found
+              </div>
+            ) : (
+              filteredFriends.map((friend) => (
+                <div 
+                  key={friend._id}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-base-300 transition-colors"
+                >
+                  <div className="form-control">
+                    <label className="label cursor-pointer">
+                      <input 
+                        type="checkbox"
+                        className="checkbox checkbox-primary checkbox-sm"
+                        checked={selectedFriends.includes(friend._id)}
+                        onChange={() => handleToggleFriend(friend._id)}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-3 flex-1">
+                    <img 
+                      src={friend.profilePic || "/avatar.png"} 
+                      alt={friend.fullName}
+                      className="size-10 rounded-full object-cover" 
+                    />
+                    <div>
+                      <h4 className="font-medium text-sm">{friend.fullName}</h4>
+                      <p className="text-xs text-base-content/60">{friend.email}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Create Button */}
+          <button
+            onClick={handleCreateGroup}
+            disabled={groupName.trim() === "" || selectedFriends.length === 0}
+            className={`
+              w-full btn bg-primary hover:bg-primary/90 border-none text-primary-content
+              ${(groupName.trim() === "" || selectedFriends.length === 0) ? "opacity-70 cursor-not-allowed" : ""}
+            `}
+          >
+            Create Group
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// Group Chat Component for display in the groups tab
+const GroupChatItem = ({ group, selectedUserId, onSelect }) => {
+  const isSelected = selectedUserId === group._id;
+  const { onlineUsers, authUser } = useAuthStore();
+  
+  // Check if the current user is a member
+  const isUserMember = group.members && group.members.some(member => member._id === authUser?._id);
+  
+  // Count how many members are online
+  const onlineMembersCount = group.members ? group.members.filter(member => 
+    onlineUsers.includes(member._id)
+  ).length : 0;
+  
+  // Debug output
+  console.log("Rendering group:", {
+    id: group._id,
+    name: group.name,
+    members: group.members?.length || 0,
+    isUserMember,
+    authUserId: authUser?._id
+  });
+  
+  if (!group || !group.name) {
+    console.error("Invalid group provided to GroupChatItem:", group);
+    return null;
+  }
+  
+  return (
+    <motion.button
+      onClick={() => onSelect(group)}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
+      className={`
+        w-full p-3 flex items-center gap-3 rounded-xl transition-all
+        hover:bg-base-300 active:bg-base-300/80
+        ${isSelected ? "bg-base-300 shadow-lg shadow-black/5" : ""}
+      `}
+    >
+      <div className="relative">
+        <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
+          {group.name.charAt(0).toUpperCase()}
+        </div>
+        <span className="absolute bottom-0 right-0 size-3 bg-primary rounded-full ring-2 ring-base-200 flex items-center justify-center">
+          <Users size={8} className="text-primary-content" />
+        </span>
+        {isUserMember && (
+          <span className="absolute top-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-base-200"></span>
+        )}
+      </div>
+
+      <div className="flex-1 text-left">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <span className="font-medium">{group.name}</span>
+            {isUserMember && (
+              <span className="text-xxs bg-green-500/20 text-green-600 px-1 py-0.5 rounded-md">Member</span>
+            )}
+          </div>
+          <span className="text-xs text-base-content/60">{formatMessageTime(group.createdAt)}</span>
+        </div>
+        <p className="text-sm text-base-content/60 truncate">
+          {group.members?.length || 0} members • {onlineMembersCount} online
+        </p>
+      </div>
+    </motion.button>
+  );
+};
+
 const Sidebar = () => {
   const {
     getUsers,
@@ -1127,7 +1411,7 @@ const Sidebar = () => {
     friends,
     getFriends,
     pendingRequests,
-    getPendingRequests,
+    getPendingRequests, groups, getGroups, subscribeToNewGroups,
   } = useChatStore();
   const {
     onlineUsers,
@@ -1140,6 +1424,7 @@ const Sidebar = () => {
   const [activeTab, setActiveTab] = useState("messages");
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [showCreateGroupDrawer, setShowCreateGroupDrawer] = useState(false);
 
   // Listen for the custom event to show the Friends tab
   useEffect(() => {
@@ -1153,6 +1438,19 @@ const Sidebar = () => {
       window.removeEventListener("showFriendsTab", handleShowFriendsTab);
     };
   }, []);
+
+  // Subscribe to group events
+  useEffect(() => {
+    console.log("Subscribing to new group events...");
+    const unsubscribe = subscribeToNewGroups();
+    
+    return () => {
+      // Unsubscribe when component unmounts
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [subscribeToNewGroups]);
 
   // Fetch users initially and then periodically
   useEffect(() => {
@@ -1180,6 +1478,55 @@ const Sidebar = () => {
       getPendingRequests();
     }
   }, [activeTab, getPendingRequests]);
+
+  // Fetch groups when groups tab is active or when a new group is created
+  useEffect(() => {
+    console.log("Active tab changed to:", activeTab);
+    if (activeTab === "groups") {
+      console.log("Fetching groups...");
+      // Always get groups from localStorage
+      if (typeof getGroups === 'function') {
+        getGroups().then(() => {
+          console.log("Groups loaded successfully!");
+        }).catch(error => {
+          console.error("Error loading groups:", error);
+        });
+      }
+      console.log("Current groups in state after getGroups:", groups);
+    }
+  }, [activeTab, getGroups]);
+
+  // Initialize groups on component mount to ensure they're loaded from localStorage
+  useEffect(() => {
+    // Load groups on component mount regardless of active tab
+    if (typeof getGroups === 'function') {
+      getGroups().then(() => {
+        console.log("Initial groups loaded, count:", groups.length);
+      }).catch(error => {
+        console.error("Error loading initial groups:", error);
+      });
+    }
+    
+    // Debug check for authUser
+    console.log("Current auth user:", authUser ? authUser._id : "Not logged in");
+  }, []);
+
+  // Display a notification when a new group is created
+  useEffect(() => {
+    if (groups.length > 0) {
+      const latestGroup = groups[0]; // Assuming groups are ordered by newest first
+      console.log("Groups updated in state:", groups);
+      
+      // If this is a newly created group and you're in it, and we're not on the groups tab
+      if (
+        latestGroup && 
+        latestGroup.members.some(member => member._id === authUser?._id) &&
+        activeTab !== "groups"
+      ) {
+        toast.success(`You're now a member of ${latestGroup.name}`);
+      }
+    }
+  }, [groups, authUser, activeTab]);
 
   // Filter pending requests based on search query
   const filteredRequests = useMemo(() => {
@@ -1218,6 +1565,16 @@ const Sidebar = () => {
         user.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
       );
   }, [users, searchQuery, friends]);
+
+  // Filter groups based on search query
+  const filteredGroups = useMemo(() => {
+    console.log("Filtering groups:", groups);
+    const filtered = Array.isArray(groups) ? groups.filter(group => 
+      group.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) : [];
+    console.log("Filtered groups:", filtered);
+    return filtered;
+  }, [groups, searchQuery]);
 
   // Get the latest message preview for each user
   const getLatestMessagePreview = (userId) => {
@@ -1280,6 +1637,19 @@ const Sidebar = () => {
     // Get last 4 digits, or pad if needed
     return numericString.padEnd(4, "0").slice(-4);
   }
+
+  // Listen for showMessagesTab event
+  useEffect(() => {
+    const handleShowMessagesTab = () => {
+      setActiveTab("messages");
+    };
+    
+    window.addEventListener('showMessagesTab', handleShowMessagesTab);
+    
+    return () => {
+      window.removeEventListener('showMessagesTab', handleShowMessagesTab);
+    };
+  }, []);
 
   if (isUsersLoading && users.length === 0) return <SidebarSkeleton />;
 
@@ -1404,7 +1774,9 @@ const Sidebar = () => {
           {activeTab === "groups" && (
             <button
               className="btn btn-sm bg-primary/90 hover:bg-primary border-none text-primary-content rounded-lg w-10 h-8 p-0 flex items-center justify-center"
-              title="Create group">
+              title="Create group"
+              onClick={() => setShowCreateGroupDrawer(true)} 
+            >
               <Plus size={16} />
             </button>
           )}
@@ -1466,20 +1838,53 @@ const Sidebar = () => {
 
           {/* Group Chat Tab Content */}
           {activeTab === "groups" && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center text-gray-400 py-10 px-4">
-              <div className="bg-base-300/70 size-14 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Users className="size-7 opacity-50" />
-              </div>
-              <h3 className="font-medium text-base-content/90 mb-1">
-                Group Chats Coming Soon
-              </h3>
-              <p className="text-sm text-base-content/60">
-                Group chat functionality will be available in the next update.
-              </p>
-            </motion.div>
+            <>
+              {console.log("Rendering groups tab, groups count:", Array.isArray(filteredGroups) ? filteredGroups.length : 0)}
+              {console.log("Raw groups data:", JSON.stringify(groups).substring(0, 100) + "...")}
+              
+              {Array.isArray(filteredGroups) && filteredGroups.length > 0 ? (
+                filteredGroups.map(group => {
+                  if (!group || !group._id) {
+                    console.error("Invalid group in filteredGroups:", group);
+                    return null;
+                  }
+                  
+                  return (
+                    <GroupChatItem
+                      key={group._id}
+                      group={group}
+                      selectedUserId={selectedUser?._id}
+                      onSelect={setSelectedUser}
+                    />
+                  );
+                })
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center text-gray-400 py-10 px-4"
+                >
+                  <div className="bg-base-300/70 size-14 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Users className="size-7 opacity-50" />
+                  </div>
+                  <h3 className="font-medium text-base-content/90 mb-1">No Group Chats Yet</h3>
+                  <p className="text-sm text-base-content/60">
+                    Create a new group by clicking the + button above.
+                  </p>
+                </motion.div>
+              )}
+              
+              {/* Render the Create Group Drawer */}
+              <AnimatePresence>
+                {showCreateGroupDrawer && (
+                  <CreateGroupDrawer 
+                    isOpen={showCreateGroupDrawer}
+                    onClose={() => setShowCreateGroupDrawer(false)}
+                    setActiveTab={setActiveTab}
+                  />
+                )}
+              </AnimatePresence>
+            </>
           )}
 
           {/* Requests Tab Content */}

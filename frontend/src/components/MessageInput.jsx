@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X, Smile, Mic, Pin } from "lucide-react";
+import { Image, Send, X, Smile, Mic, Pin, Users } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
@@ -11,7 +11,10 @@ const MessageInput = () => {
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
-  const { sendMessage, selectedUser } = useChatStore();
+  const { sendMessage, sendGroupMessage, selectedUser } = useChatStore();
+
+  // Check if selected user is a group
+  const isGroup = selectedUser?.isGroup || false;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -55,7 +58,13 @@ const MessageInput = () => {
         formData.append("image", imageFile);
       }
 
-      await sendMessage(formData);
+      if (isGroup) {
+        // Send message to group
+        await sendGroupMessage(formData, selectedUser._id);
+      } else {
+        // Send message to user
+        await sendMessage(formData);
+      }
 
       setText("");
       setImageFile(null);
@@ -92,12 +101,26 @@ const MessageInput = () => {
 
   const handlePinChat = () => {
     // To be implemented: pin chat functionality
-    console.log("Pin chat with", selectedUser?.fullName);
-    toast.success(`Pinned conversation with ${selectedUser?.fullName}`);
+    const targetName = isGroup ? selectedUser?.name : selectedUser?.fullName;
+    console.log("Pin chat with", targetName);
+    toast.success(`Pinned conversation with ${targetName}`);
   };
 
   return (
     <div className="p-4 bg-base-100 border-t border-base-300">
+      {/* Group Name Display */}
+      {isGroup && (
+        <div className="mb-3 flex items-center justify-center">
+          <div className="bg-base-200 rounded-full px-4 py-1.5 flex items-center gap-2">
+            <Users size={16} className="text-primary" />
+            <span className="font-medium">{selectedUser?.name}</span>
+            <span className="text-xs text-base-content/60">
+              ({selectedUser?.members?.length || 0} members)
+            </span>
+          </div>
+        </div>
+      )}
+
       {imagePreview && (
         <div className="mb-3">
           <div className="relative inline-block">
@@ -156,7 +179,7 @@ const MessageInput = () => {
             <input
               type="text"
               className="flex-1 bg-transparent text-base-content placeholder-base-content/50 focus:outline-none"
-              placeholder="Type a message..."
+              placeholder={isGroup ? `Message to ${selectedUser?.name}...` : "Type a message..."}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}

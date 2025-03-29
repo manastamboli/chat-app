@@ -177,6 +177,46 @@ io.on("connection", (socket) => {
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
+  
+  // Handle group created events
+  socket.on("groupCreated", async (data) => {
+    try {
+      console.log("Group creation notification received:", data);
+      
+      // Get the receiver socket ID
+      const receiverSocketId = getReceiverSocketId(data.memberId);
+      
+      if (receiverSocketId) {
+        // Forward the group creation event to the specific member
+        io.to(receiverSocketId).emit("groupCreated", data);
+        console.log(`Group creation notification sent to ${data.memberId} (${receiverSocketId})`);
+      } else {
+        console.log(`User ${data.memberId} is offline, group notification will be seen when they reconnect`);
+      }
+    } catch (error) {
+      console.error("Error handling group creation event:", error);
+    }
+  });
+  
+  // Handle group messages
+  socket.on("groupMessage", async (message) => {
+    try {
+      console.log("Group message received:", message);
+      
+      if (!message.groupId) {
+        console.error("Invalid group message - no groupId specified");
+        return;
+      }
+      
+      // Forward the message to all members of the group who are online
+      // Instead of direct user-to-user messaging, we broadcast to all connected clients
+      // Each client will filter based on group membership
+      io.emit("groupMessage", message);
+      console.log(`Group message broadcast to all connected clients for group: ${message.groupId}`);
+    } catch (error) {
+      console.error("Error handling group message event:", error);
+    }
+  });
 });
 
 export { io, app, server };

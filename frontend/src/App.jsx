@@ -20,7 +20,7 @@ const App = () => {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
   const { theme } = useThemeStore();
 
-  const { subscribeToAllMessages } = useChatStore();
+  const { subscribeToAllMessages, getGroups } = useChatStore();
 
   // Apply theme to the document root
   useEffect(() => {
@@ -28,16 +28,19 @@ const App = () => {
   }, [theme]);
   
 
-  const { users,getUsers } = useChatStore();
+  const { users, getUsers } = useChatStore();
   
-  console.log("users",users);
+  console.log("users", users);
   console.log({ onlineUsers });
 
 
   useEffect(() => {
     checkAuth();
     getUsers();
-  }, [checkAuth,getUsers]);
+    
+    // Initialize groups from localStorage
+    getGroups();
+  }, [checkAuth, getUsers, getGroups]);
 
   // Subscribe to all messages when authenticated
   useEffect(() => {

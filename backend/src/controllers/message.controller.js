@@ -1,9 +1,11 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 import CryptoJS from "crypto-js";
+import Group from "../models/groups.js";
 import fs from "fs";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
+import { constants } from "fs/promises";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -117,3 +119,85 @@ export const getUsersApproval=async(req,res)=>{
     res.status(500).json({ error: "Internal server error" });
   }
 }
+export const createGroup=async(req,res)=>{
+  try {
+    const {name,members}=req.body;
+    const admin=req.user;
+
+    const group=await Group.create({
+      name,
+      members:[...members,admin._id],
+      admin:admin._id
+
+    })
+
+    return res.status(201).json({message:"Group created succesfully",
+      group
+    }
+    );
+  } catch (error) {
+    console.log("Error in createGroup controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export const getMyGroups=async(req,res)=>{
+  try {
+    const id=req.user._id;
+    const groups=await Group.find({members:id}).populate("members","_id fullName profilePic");
+
+    if(!groups){
+      return res.status(404).json({message:"No groups found"});
+    }
+
+    return res.status(200).json(groups);
+
+   
+  } catch (error) {
+    console.log("Error in getMyGroups controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export const sendGroupMessage=async(req,res)=>{
+  try {
+    const {text,groupId}=req.body;
+    const sender=req.user;
+    let imageUrl=null;
+    const image=req.file;
+    if(image){
+      const uploadResponse=await uploadOnCloudinary(image.path);
+      imageUrl=uploadResponse.secure_url;
+    }
+    const group= await Group.findById(groupId);
+    if(!group){
+      return res.status(404).json({message:"Group not found"});
+    }
+
+    const message=await Message.create({
+      senderId:sender._id,
+      groupId,
+      text,
+      image:imageUrl
+    })
+
+    return res.status(201).json({message:"Message sent successfully",
+      message
+    })
+  } catch (error) {
+    console.log("Error in sendGroupMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export const getGroupMessages=async(req,res)=>{
+  try {
+    const {groupId}=req.params;
+    const messages=await Message.find({groupId}).populate("senderId", "_id fullName profilePic");
+    return res.status(200).json(messages);
+  } catch (error) {
+    console.log("Error in getGroupMessages controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+

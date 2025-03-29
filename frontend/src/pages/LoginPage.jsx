@@ -10,10 +10,22 @@ const LoginPage = () => {
     email: "",
     password: "",
   });
-  const { login, isLoggingIn } = useAuthStore();
+  const [formErrors, setFormErrors] = useState({});
+  const { login, isLoggingIn, error } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    const errors = {};
+    if (!formData.email) errors.email = "Email is required";
+    if (!formData.password) errors.password = "Password is required";
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
     login(formData);
   };
 
@@ -48,11 +60,15 @@ const LoginPage = () => {
                 </div>
                 <input
                   type="email"
-                  className={`input input-bordered w-full pl-10`}
+                  className={`input input-bordered w-full pl-10 ${formErrors.email ? 'input-error' : ''}`}
                   placeholder="you@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    setFormErrors({ ...formErrors, email: '' });
+                  }}
                 />
+                {formErrors.email && <div className="text-error text-sm mt-1">{formErrors.email}</div>}
               </div>
             </div>
 
@@ -66,10 +82,13 @@ const LoginPage = () => {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  className={`input input-bordered w-full pl-10`}
+                  className={`input input-bordered w-full pl-10 ${formErrors.password ? 'input-error' : ''}`}
                   placeholder="••••••••"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    setFormErrors({ ...formErrors, password: '' });
+                  }}
                 />
                 <button
                   type="button"
@@ -95,6 +114,18 @@ const LoginPage = () => {
                 "Sign in"
               )}
             </button>
+            
+            {error && (
+              <div className="text-error text-sm mt-2 text-center">
+                {error}
+              </div>
+            )}
+            
+            <div className="text-right">
+              <Link to="/forgot-password" className="link link-primary text-sm">
+                Forgot password?
+              </Link>
+            </div>
           </form>
 
           <div className="text-center">

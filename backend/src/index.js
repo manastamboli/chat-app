@@ -6,6 +6,7 @@ import cors from "cors";
 import path from "path";
 
 import { connectDB } from "./lib/db.js";
+import { errorHandler } from "./middleware/error.middleware.js";
 
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
@@ -35,6 +36,9 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
+
+// Error handling middleware should be used after routes
+app.use(errorHandler);
 
 server.listen(PORT, () => {
   console.log("server is running on PORT:" + PORT);

@@ -178,11 +178,21 @@ export const useChatStore = create((set, get) => ({
   
     if (!selectedUser || !auth || !socket) return;
   
+    // Extract text from FormData or use directly if it's a regular object
+    const messageText = messageData instanceof FormData 
+      ? messageData.get('text') 
+      : messageData.text || "";
+    
+    // For optimistic UI, we use the image preview URL if available
+    const imagePreview = messageData instanceof FormData
+      ? (messageData.get('image') ? URL.createObjectURL(messageData.get('image')) : null)
+      : messageData.image;
+    
     // Create optimistic UI update
     const optimisticMessage = {
       _id: Date.now().toString(), // Temporary ID
-      text: messageData.text || "",
-      image: messageData.image || null,
+      text: messageText || "",
+      image: imagePreview,
       senderId: auth._id,
       receiverId: selectedUser._id,
       createdAt: new Date().toISOString(),
@@ -196,19 +206,27 @@ export const useChatStore = create((set, get) => ({
         [selectedUser._id]: [...messages, optimisticMessage]
       }
     });
-  
+    
     try {
-      // Emit message via WebSocket
+      // If using WebSocket for optimistic UI, emit basic message text
+      // But actual file upload happens via HTTP
       socket.emit("sendMessage", {
         senderId: auth._id,
         receiverId: selectedUser._id,
-        text: messageData.text,
-        image: messageData.image,
+        text: messageText,
         createdAt: new Date().toISOString()
       });
-  
+      
       // Save message to database via API
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      // Use FormData directly if that's what was passed
+      const res = await axiosInstance.post(
+        `/messages/send/${selectedUser._id}`, 
+        messageData,
+        // If using FormData, we need to set the correct content type
+        messageData instanceof FormData 
+          ? { headers: { 'Content-Type': 'multipart/form-data' } }
+          : {}
+      );
   
       // Replace optimistic message with the real one from API
       const updatedMessages = get().messages.map(msg => 
@@ -222,6 +240,11 @@ export const useChatStore = create((set, get) => ({
           [selectedUser._id]: updatedMessages
         }
       });
+      
+      // Revoke the object URL to avoid memory leaks
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
   
       return res.data;
     } catch (error) {
@@ -234,6 +257,11 @@ export const useChatStore = create((set, get) => ({
           [selectedUser._id]: filteredMessages
         }
       });
+      
+      // Revoke the object URL on error to avoid memory leaks
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
   
       toast.error(error.response?.data?.message || "Failed to send message");
       throw error;
@@ -248,12 +276,7 @@ export const useChatStore = create((set, get) => ({
     if (!socket) return;
 
     const handleNewMessage = async(newMessage) => {
-      
-      const decryptText= CryptoJS.AES.decrypt(newMessage.text,'key')
-      const originalText=decryptText.toString(CryptoJS.enc.Utf8);
-      
-      console.log("originalText",originalText);
-
+      // We'll store the encrypted message and decrypt only when rendering
       const isMessageForSelectedUser = 
         newMessage.senderId === selectedUser._id || 
         newMessage.receiverId === selectedUser._id;
@@ -293,7 +316,7 @@ export const useChatStore = create((set, get) => ({
     
     if (!socket || !authUser) return () => {};
     
-    const handleNewMessage = (newMessage) => {
+    const handleNewMessage = async(newMessage) => {
       // Determine which user this message is from/to
       const otherUserId = newMessage.senderId === authUser._id 
         ? newMessage.receiverId 

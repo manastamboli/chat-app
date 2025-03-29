@@ -51,6 +51,24 @@ io.on("connection", (socket) => {
 
   socket.on("sendChatRequest", async ({ senderId, receiverId }) => {
     try {
+      // Check if there's already a pending or accepted request between these users
+      const existingRequest = await ChatRequest.findOne({
+        $or: [
+          { sender: senderId, receiver: receiverId },
+          { sender: receiverId, receiver: senderId }
+        ],
+        status: { $in: ['pending', 'accepted'] }
+      });
+      
+      if (existingRequest) {
+        console.log("Chat request already exists:", existingRequest);
+        socket.emit('chatRequestError', {
+          message: 'A chat request between these users already exists',
+          requestId: existingRequest._id
+        });
+        return;
+      }
+      
       const newRequest = await ChatRequest.create({
         sender: senderId,
         receiver: receiverId,
@@ -73,18 +91,45 @@ io.on("connection", (socket) => {
       }
     } catch (error) {
       console.error("Error in sendChatRequest: ", error.message);
+      socket.emit('chatRequestError', {
+        message: error.message
+      });
     }
   });
 
     socket.on("respondToChatRequest",async({requestId,status})=>{
       try {
-        const request=await ChatRequest.findByIdAndUpdate(
+        console.log("respondToChatRequest event received:",{requestId,status});
+        
+        // First try to find by _id
+        let request = await ChatRequest.findByIdAndUpdate(
           requestId,
           {status},
           {new:true}
-        ).populate('sender receiver')
+        ).populate('sender receiver');
         
-        console.log("request",request);
+        // If not found by _id, try to find by sender field
+        if (!request) {
+          console.log(`Request not found by ID ${requestId}, checking by sender field`);
+          request = await ChatRequest.findOneAndUpdate(
+            { sender: requestId, status: 'pending' },
+            { status },
+            { new: true }
+          ).populate('sender receiver');
+        }
+        
+        console.log("request after lookup:", request);
+        
+        if (!request) {
+          console.error(`Chat request with ID/sender ${requestId} not found`);
+          // Send error response back to the client who initiated the request
+          socket.emit('chatRequestError', {
+            message: `Chat request with ID/sender ${requestId} not found`,
+            requestId
+          });
+          return;
+        }
+        
         console.log("chatRequestResponse event emitted:",{request});  
         io.to(request.receiver._id.toString()).emit('chatRequestResponse',{request});
         io.to(request.sender._id.toString()).emit('chatRequestResponse',{request});
@@ -92,6 +137,11 @@ io.on("connection", (socket) => {
         
       } catch (error) {
         console.error("Error in respondToChatRequest: ", error.message);
+        // Send error response back to the client
+        socket.emit('chatRequestError', {
+          message: error.message,
+          requestId
+        });
       }
 
     })
@@ -104,6 +154,7 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", async ({ senderId, receiverId, text, image }) => {
     console.log(`Message from ${senderId} to ${receiverId}:`, text);
    const encyptText=await CryptoJS.AES.encrypt(text,"key").toString();
+   console.log("encyptText",encyptText);
     const newMessage = {
       senderId,
       receiverId,
@@ -111,7 +162,7 @@ io.on("connection", (socket) => {
       image,
       createdAt: new Date().toISOString(),
     };
-  
+    console.log("newMessage",newMessage);
     // Find receiver socket ID
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {

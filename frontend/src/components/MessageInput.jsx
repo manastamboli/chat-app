@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -21,6 +22,10 @@ const MessageInput = () => {
       return;
     }
 
+    // Store the actual file for form submission
+    setImageFile(file);
+    
+    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -29,24 +34,31 @@ const MessageInput = () => {
   };
 
   const removeImage = () => {
+    setImageFile(null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
+    if (!text.trim() && !imageFile) return;
     if (isSending) return;
 
     setIsSending(true);
 
     try {
-      await sendMessage({
-        text: text.trim(),
-        image: imagePreview,
-      });
+      // Create a FormData object for file upload
+      const formData = new FormData();
+      formData.append("text", text.trim());
+      
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      await sendMessage(formData);
 
       setText("");
+      setImageFile(null);
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
@@ -130,6 +142,7 @@ const MessageInput = () => {
           ref={formRef}
           onSubmit={handleSendMessage} 
           className="flex-1 flex items-center gap-2"
+          encType="multipart/form-data"
         >
           <div className="flex-1 flex items-center gap-2 bg-base-300 rounded-full px-4 py-2">
             <button
@@ -168,7 +181,7 @@ const MessageInput = () => {
           <button
             type="submit"
             className="btn btn-circle btn-sm bg-primary text-primary-content hover:bg-primary/90 disabled:bg-primary/50"
-            disabled={(!text.trim() && !imagePreview) || isSending}
+            disabled={(!text.trim() && !imageFile) || isSending}
           >
             <Send size={18} className={isSending ? 'animate-pulse' : ''} />
           </button>

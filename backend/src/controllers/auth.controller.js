@@ -1,8 +1,9 @@
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
-import cloudinary from "../lib/cloudinary.js";
+//import cloudinary from "../lib/cloudinary.js";
 import ChatRequest from "../models/chatRequest.js";
+import fs from "fs";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -88,23 +89,45 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body;
     const userId = req.user._id;
-
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+    
+    // When using multer, the file is available in req.file
+    if (!req.file) {
+      return res.status(400).json({ message: "Profile picture is required" });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
-    );
+    try {
+      // Upload file from multer's temporary storage to cloudinary
+      const uploadResponse = await cloudinary.uploader.upload(req.file.path);
+      
+      // Update user profile with the Cloudinary URL
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { profilePic: uploadResponse.secure_url },
+        { new: true }
+      );
 
-    res.status(200).json(updatedUser);
+      // Delete the temporary file after successful upload
+      fs.unlinkSync(req.file.path);
+
+      res.status(200).json(updatedUser);
+    } catch (cloudinaryError) {
+      console.log("Error uploading to cloudinary:", cloudinaryError);
+      
+      // Still delete the temp file if cloudinary upload fails
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      return res.status(500).json({ message: "Failed to upload profile picture" });
+    }
   } catch (error) {
-    console.log("error in update profile:", error);
+    // Clean up temporary file if something went wrong
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    console.log("Error in update profile:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -118,43 +141,27 @@ export const checkAuth = (req, res) => {
   }
 };
 
-// export const getMyFriends=async(req,res)=>{
-//   try {
-//      const userid=req.user;
-     
-//      const chatRequests=await ChatRequest.find({sender:userid});
-//      console.log("chatRequests",chatRequests);
-//      if(chatRequests.status=='accepted'){
-//       console.log("if executed");
-//       const friends=chatRequests.map(request=>request.receiver);
-//       return res.status(200).json(friends);
-//      }
-//      else{
-//       return res.status(200).json([]);
-//      }
-     
-//   } catch (error) {
-//     console.log("Error in getMyFriends controller", error.message);
-//     return res.status(500).json({ message: "Internal Server Error" });
-//   }
-// }
-
 export const getMyFriends = async (req, res) => {
   try {
     const userid = req.user;
 
-    // Get all chat requests where the user is the sender
-    const chatRequests = await ChatRequest.find({ sender: userid });
-    console.log("chatRequests", chatRequests);
+    // Get all chat requests where the user is either the sender or receiver
+    const sentRequests = await ChatRequest.find({ sender: userid, status: 'accepted' });
+    const receivedRequests = await ChatRequest.find({ receiver: userid, status: 'accepted' });
+    console.log("sentRequests", sentRequests);
+    console.log("receivedRequests", receivedRequests);
 
-    // Filter requests that have status 'accepted'
-    const acceptedRequests = chatRequests.filter(request => request.status === 'accepted');
+    // Extract friend IDs from both sent and received requests
+    const friendsFromSent = sentRequests.map(request => request.receiver);
+    const friendsFromReceived = receivedRequests.map(request => request.sender);
+    
+    // Combine all friend IDs
+    const allFriendIds = [...friendsFromSent, ...friendsFromReceived];
 
-    if (acceptedRequests.length > 0) {
-      console.log("if executed");
-      const friends = acceptedRequests.map(request => request.receiver);
-      const myfreinds=await User.find({_id:{$in:friends}});
-      console.log("friends",myfreinds);
+    if (allFriendIds.length > 0) {
+      console.log("Finding friends");
+      const myfreinds = await User.find({_id: {$in: allFriendIds}});
+      console.log("friends", myfreinds);
       return res.status(200).json(myfreinds);
     } else {
       return res.status(200).json([]);
@@ -165,20 +172,49 @@ export const getMyFriends = async (req, res) => {
   }
 };
 
-export const getPendingRequests=async(req,res)=>{
+export const getPendingRequests = async(req, res) => {
   try {
     console.log("getPendingRequests controller executed");
-    const userid=req.user;
-    const pendingRequest=await ChatRequest.find({receiver:userid,status:'pending'}).catch((err)=>{
+    const userid = req.user;
+    
+    // Get pending requests
+    const pendingRequest = await ChatRequest.find({receiver: userid, status: 'pending'}).catch((err) => {
       console.log("Error in getPendingRequests model", err.message);
       return res.status(500).json({ message: "Internal Server Error" });
     });
-    if(!pendingRequest){
+    
+    if(!pendingRequest || pendingRequest.length === 0) {
       return res.status(200).json([]);
-    }
-    else{
-      const pendingRequests=pendingRequest.map(request=>request.sender);
-      const pendingUsers=await User.find({_id:{$in:pendingRequests}});
+    } else {
+      // Get accepted requests to filter out users who are already friends
+      const acceptedSentRequests = await ChatRequest.find({ sender: userid, status: 'accepted' });
+      const acceptedReceivedRequests = await ChatRequest.find({ receiver: userid, status: 'accepted' });
+      
+      // Extract friend IDs from both sent and received accepted requests
+      const friendsFromSent = acceptedSentRequests.map(request => request.receiver.toString());
+      const friendsFromReceived = acceptedReceivedRequests.map(request => request.sender.toString());
+      
+      // Combine all friend IDs
+      const allFriendIds = [...friendsFromSent, ...friendsFromReceived];
+      
+      console.log("Existing friend IDs:", allFriendIds);
+      
+      // Get sender IDs from pending requests
+      const pendingRequestSenderIds = pendingRequest.map(request => request.sender.toString());
+      
+      // Filter out senders who are already friends
+      const nonFriendSenderIds = pendingRequestSenderIds.filter(senderId => 
+        !allFriendIds.includes(senderId)
+      );
+      
+      console.log("Filtered sender IDs (excluding friends):", nonFriendSenderIds);
+      
+      if(nonFriendSenderIds.length === 0) {
+        return res.status(200).json([]);
+      }
+      
+      // Get user information for non-friend senders
+      const pendingUsers = await User.find({_id: {$in: nonFriendSenderIds}});
       return res.status(200).json(pendingUsers);
     }
   } catch (error) {
@@ -186,3 +222,39 @@ export const getPendingRequests=async(req,res)=>{
     return res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+export const updateChatRequest = async(req,res)=>{
+  try {
+    console.log("updateChatRequest controller executed");
+    const {requestId,status}=req.body;
+    const updatedRequest=await ChatRequest.findByIdAndUpdate(requestId,{status},{new:true});
+    console.log("updatedRequest",updatedRequest);
+    return res.status(200).json(updatedRequest);
+  } catch (error) {
+    console.log("Error in updateChatRequest controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export const verifyRequests = async(req, res) => {
+  try {
+    const { requestIds } = req.body;
+    
+    if (!requestIds || !Array.isArray(requestIds)) {
+      return res.status(400).json({ message: "Invalid request IDs" });
+    }
+    
+    // Find which request IDs still exist in the database
+    const existingRequests = await ChatRequest.find({
+      _id: { $in: requestIds }
+    }).select('_id');
+    
+    // Extract just the ID strings
+    const validRequestIds = existingRequests.map(req => req._id.toString());
+    
+    return res.status(200).json({ validRequestIds });
+  } catch (error) {
+    console.log("Error in verifyRequests controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};

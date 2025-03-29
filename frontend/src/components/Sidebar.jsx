@@ -291,19 +291,39 @@ const ProfileDrawer = ({ isOpen, onClose, user, isUpdatingProfile }) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Create a FormData object for file upload
+    const formData = new FormData();
+    formData.append('profilePic', file);
+    
+    // Set preview image for immediate UI feedback
     const reader = new FileReader();
-    reader.readAsDataURL(file);
-
-    reader.onload = async () => {
-      const base64Image = reader.result;
-      setSelectedImg(base64Image);
-      await updateProfile({ profilePic: base64Image });
+    reader.onloadend = () => {
+      setSelectedImg(reader.result);
     };
+    reader.readAsDataURL(file);
+    
+    // Send the file to the server
+    await updateProfile(formData);
   };
   
   const handleSaveDrawing = async (imgData) => {
+    // Set the preview image
     setSelectedImg(imgData);
-    await updateProfile({ profilePic: imgData });
+    
+    // Convert base64 to blob
+    const response = await fetch(imgData);
+    const blob = await response.blob();
+    
+    // Create a file from the blob
+    const file = new File([blob], "drawing.png", { type: "image/png" });
+    
+    // Create a FormData object
+    const formData = new FormData();
+    formData.append('profilePic', file);
+    
+    // Send the file to the server
+    await updateProfile(formData);
+    
     setIsDrawingMode(false);
   };
   
@@ -513,6 +533,7 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
   const isSelected = selectedUserId === user?._id;
   const isOnline = onlineUsers.includes(user?._id);
   const { respondToChatRequest } = useAuthStore();
+  const { getFriends } = useChatStore();
   
   console.log("Contact component props:", { user, isPendingRequest, requestId });
   
@@ -556,16 +577,34 @@ const Contact = memo(({ user, selectedUserId, onlineUsers, messagePreview, onSel
     };
   }, [showContextMenu]);
 
-  const handleAcceptRequest = (e) => {
+  const handleAcceptRequest = async (e) => {
     e.stopPropagation();
     console.log("Accepting request:", requestId);
-    respondToChatRequest(requestId, "accepted");
+    if (!requestId) {
+      console.error("Cannot accept request: requestId is undefined or null");
+      return;
+    }
+    try {
+      await respondToChatRequest(requestId, "accepted");
+      // Refresh friends list after accepting the request
+      getFriends();
+    } catch (error) {
+      console.error("Error accepting request:", error);
+    }
   };
 
   const handleRejectRequest = (e) => {
     e.stopPropagation();
     console.log("Rejecting request:", requestId);
-    respondToChatRequest(requestId, "rejected");
+    if (!requestId) {
+      console.error("Cannot reject request: requestId is undefined or null");
+      return;
+    }
+    try {
+      respondToChatRequest(requestId, "rejected");
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+    }
   };
 
   const handleArchive = (e) => {
@@ -1275,10 +1314,11 @@ const Sidebar = () => {
               {Array.isArray(sortedRequests) && sortedRequests.map((request) => {
                 console.log("Rendering individual request:", request);
                 // The sender info is directly in the request object
-                if (!request) {
-                  console.log("No request found");
+                if (!request || !request._id) {
+                  console.log("No valid request found", request);
                   return null;
                 }
+                console.log("Request ID being passed:", request._id);
                 return (
                   <Contact
                     key={request._id}

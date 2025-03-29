@@ -1,9 +1,9 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 import CryptoJS from "crypto-js";
-
-import cloudinary from "../lib/cloudinary.js";
+import fs from "fs";
 import { getReceiverSocketId, io } from "../lib/socket.js";
+import uploadOnCloudinary from "../utils/cloudinary.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -38,21 +38,51 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+
+    const { text } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    let imageUrl;
-    if (image) {
-      // Upload base64 image to cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url;
+    let imageUrl = null;
+    
+    // Check if there's a file to upload
+    console.log("req.file",req.file);
+    if (req.file) {
+      try {
+           
+        // Upload file to cloudinary
+        const uploadResponse = await uploadOnCloudinary(req.file.path);
+        imageUrl = uploadResponse.secure_url;
+        console.log("Image uploaded successfully:", uploadResponse);
+        
+        // Delete the temporary file after successful upload
+        if (req.file.path && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (cloudinaryError) {
+        console.log("Error uploading to cloudinary:", cloudinaryError.message);
+        
+        // Still delete the temp file if cloudinary upload fails
+        if (req.file.path && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        
+        return res.status(500).json({ error: "Failed to upload image" });
+      }
     }
 
+    // If no text is provided and there's no image, return an error
+    if (!text && !imageUrl) {
+      return res.status(400).json({ error: "Message cannot be empty" });
+    }
+
+    // Encrypt the text (only if text exists)
+    const encryptText = text ? CryptoJS.AES.encrypt(text, 'key').toString() : "";
+    
     const newMessage = new Message({
       senderId,
       receiverId,
-      text,
+      text: encryptText,
       image: imageUrl,
     });
 
@@ -65,7 +95,12 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
+    // Clean up temporary file if something went wrong
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    console.log("Error in sendMessage controller:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };

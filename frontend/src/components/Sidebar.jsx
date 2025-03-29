@@ -572,7 +572,7 @@ const Contact = memo(
     const isSelected = selectedUserId === user?._id;
     const isOnline = onlineUsers.includes(user?._id);
     const { respondToChatRequest } = useAuthStore();
-    const { getFriends } = useChatStore();
+    const { getFriends, deleteChat, clearChat } = useChatStore();
 
     console.log("Contact component props:", {
       user,
@@ -667,11 +667,24 @@ const Contact = memo(
       console.log("Block user", user.fullName);
     };
 
-    const handleClearChat = (e) => {
+    const handleClearChat = async (e) => {
       e.stopPropagation();
-      // To be implemented: clear chat functionality
-      setShowContextMenu(false);
-      console.log("Clear chat with", user.fullName);
+      try {
+        await clearChat(user._id);
+        setShowContextMenu(false);
+      } catch (error) {
+        console.error("Error clearing chat:", error);
+      }
+    };
+
+    const handleDeleteChat = async (e) => {
+      e.stopPropagation();
+      try {
+        await deleteChat(user._id);
+        setShowContextMenu(false);
+      } catch (error) {
+        console.error("Error deleting chat:", error);
+      }
     };
 
     const copyTagToClipboard = (e) => {
@@ -842,14 +855,22 @@ const Contact = memo(
                   </li>
                   <li>
                     <button
-                      onClick={handleClearChat}
+                      onClick={handleDeleteChat}
                       className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors">
-                      <Trash2 className="size-4 text-warning" />
-                      <span>Clear Chat</span>
+                      <Trash2 className="size-4 text-error" />
+                      <span>Delete Chat</span>
                     </button>
                   </li>
                 </>
               )}
+              <li>
+                <button
+                  onClick={handleClearChat}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-base-300 rounded-md transition-colors">
+                  <Trash2 className="size-4 text-warning" />
+                  <span>Clear Chat</span>
+                </button>
+              </li>
             </ul>
           </div>
         )}

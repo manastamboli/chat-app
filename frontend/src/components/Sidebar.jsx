@@ -984,45 +984,39 @@ const AddFriendForm = ({ onClose }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if(users.find(user=>user.email===email)){
-      
-     const User=users.find(user=>user.email===email);
-     sendChatRequest(User._id);
-
+      const User=users.find(user=>user.email===email);
+      sendChatRequest(User._id);
     }
-
-    // Here you would implement the actual friend request logic
-    // For now we just close the form
-
     onClose();
   };
   
   return (
-    <div className="p-4 bg-base-300 rounded-xl">
-      <h3 className="font-medium mb-3">Add a Friend</h3>
-      <form onSubmit={handleSubmit}>
+    <div className="p-3 bg-base-300/80 rounded-lg shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium text-base-content/90">Add a Friend</h3>
+        <button 
+          onClick={onClose}
+          className="size-5 rounded-full flex items-center justify-center hover:bg-base-200/60"
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-2">
         <input
           type="email"
           placeholder="Enter email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-base-200 border border-base-300 rounded-lg p-2 mb-3"
+          className="w-full bg-base-200/80 border-none rounded-lg p-2 text-sm focus:ring-1 focus:ring-primary/50"
           required
         />
-        <div className="flex justify-end gap-2">
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="btn btn-sm bg-base-200 hover:bg-base-300 border-none"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit"
-            className="btn btn-sm bg-primary hover:bg-primary/90 border-none text-primary-content"
-          >
-            Send Request
-          </button>
-        </div>
+        <button 
+          type="submit"
+          className="w-full btn btn-sm bg-primary hover:bg-primary/90 border-none text-primary-content rounded-lg"
+        >
+          <UserPlus size={14} className="mr-1" />
+          Send Request
+        </button>
       </form>
     </div>
   );
@@ -1030,23 +1024,16 @@ const AddFriendForm = ({ onClose }) => {
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, getLatestMessage, friends, getFriends, pendingRequests, getPendingRequests } = useChatStore();
-  const { onlineUsers, authUser, logout, isUpdatingProfile,respondToChatRequest} = useAuthStore();
+  const { onlineUsers, authUser, logout, isUpdatingProfile, respondToChatRequest } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   
-  // Mock archived chats - in a real app you would fetch these from the backend
-  const [archivedChats] = useState([
-    // We're using a subset of the users as "archived" chats for demonstration
-    ...(users.slice(0, 2) || [])
-  ]);
-
   // Listen for the custom event to show the Friends tab
   useEffect(() => {
     const handleShowFriendsTab = () => {
       setActiveTab("friends");
-      setShowAddFriend(true);
     };
     
     window.addEventListener('showFriendsTab', handleShowFriendsTab);
@@ -1075,9 +1062,9 @@ const Sidebar = () => {
     }
   }, [activeTab, getFriends]);
 
-  // Fetch pending requests when messages tab is active
+  // Fetch pending requests when requests tab is active
   useEffect(() => {
-    if (activeTab === "messages") {
+    if (activeTab === "requests") {
       console.log("Fetching pending requests...");
       getPendingRequests();
     }
@@ -1107,6 +1094,15 @@ const Sidebar = () => {
     ),
     [friends, searchQuery]
   );
+
+  // Filter users based on search query and friend status
+  const filteredUsers = useMemo(() => {
+    // First filter to only include users that are in the friends list
+    const friendIds = friends.map(friend => friend._id);
+    return users
+      .filter(user => friendIds.includes(user._id))
+      .filter(user => user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [users, searchQuery, friends]);
 
   // Get the latest message preview for each user
   const getLatestMessagePreview = (userId) => {
@@ -1172,144 +1168,211 @@ const Sidebar = () => {
 
   return (
     <>
-      <aside className="h-full w-[280px] bg-base-200 flex flex-col border-r border-base-300">
+      <aside className="h-full w-[280px] bg-base-200 flex flex-col border-r border-base-300/30">
         {/* App branding and title */}
-        <div className="p-4 border-b border-base-300 flex items-center gap-2">
-          <div className="size-10 rounded-xl bg-primary/15 flex items-center justify-center shadow-sm">
+        <div className="p-4 border-b border-base-300/30 flex items-center gap-2">
+          <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shadow-sm">
             <MessageCircle className="size-5 text-primary" />
           </div>
-          <h1 className="text-xl font-bold">BaatCheet</h1>
+          <h1 className="text-xl font-medium">BaatCheet</h1>
         </div>
         
         {/* Header with user profile */}
-        <div className="p-4 flex items-center justify-between border-b border-base-300">
+        <div className="p-3 flex items-center justify-between border-b border-base-300/30">
           <button
             onClick={toggleProfileDrawer}
-            className="flex items-center gap-3 hover:bg-base-300 p-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-2.5 hover:bg-base-300/40 p-1.5 rounded-lg transition-colors"
           >
             <div className="relative">
               <img 
                 src={authUser?.profilePic || "/avatar.png"} 
                 alt="profile" 
-                className="size-10 rounded-full object-cover ring-2 ring-primary/20"
+                className="size-9 rounded-full object-cover ring-1 ring-primary/20"
               />
-              <span className="absolute bottom-0 right-0 size-2.5 bg-green-500 rounded-full ring-2 ring-base-200" />
+              <span className="absolute bottom-0 right-0 size-2.5 bg-green-500 rounded-full ring-1 ring-base-200" />
             </div>
             <div className="text-left">
               <div className="flex items-center gap-1">
-                <h2 className="font-medium">{authUser?.fullName}</h2>
-                <span className="text-xxs bg-base-300 px-1 rounded font-mono text-primary">#{userTag}</span>
+                <h2 className="font-medium text-sm">{authUser?.fullName}</h2>
+                <span className="text-xxs bg-base-300/60 px-1 rounded font-mono text-primary">#{userTag}</span>
               </div>
-              <p className="text-xs text-primary">Active</p>
+              <p className="text-xs text-primary/80">Active</p>
             </div>
           </button>
-          <div className="flex gap-1">
-            <button 
-              onClick={toggleProfileDrawer}
-              className="btn btn-circle btn-sm bg-base-300 border-none hover:bg-base-300/80 transition-all"
-            >
-              <User className="size-4 text-primary" />
-            </button>
-          </div>
+          <button 
+            onClick={toggleProfileDrawer}
+            className="btn btn-sm btn-circle bg-base-300/50 hover:bg-base-300 border-none"
+          >
+            <User className="size-4 text-primary/90" />
+          </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-base-300">
+        <div className="flex border-b border-base-300/40">
           <button
-            onClick={() => setActiveTab("messages")}
+            onClick={() => {
+              setActiveTab("messages");
+              setShowAddFriend(false);
+            }}
             className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === "messages" ? "text-primary" : "text-gray-400"
+              activeTab === "messages" ? "text-primary" : "text-gray-400 hover:text-gray-300"
             }`}
           >
             Messages
             {activeTab === "messages" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary/80"></div>
             )}
           </button>
           <button
-            onClick={() => setActiveTab("friends")}
+            onClick={() => {
+              setActiveTab("groups");
+              setShowAddFriend(false);
+            }}
             className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === "friends" ? "text-primary" : "text-gray-400"
+              activeTab === "groups" ? "text-primary" : "text-gray-400 hover:text-gray-300"
             }`}
           >
-            Friends
-            {activeTab === "friends" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
+            Groups
+            {activeTab === "groups" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary/80"></div>
             )}
           </button>
           <button
-            onClick={() => setActiveTab("archived")}
+            onClick={() => {
+              setActiveTab("requests");
+              setShowAddFriend(false);
+            }}
             className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === "archived" ? "text-primary" : "text-gray-400"
+              activeTab === "requests" ? "text-primary" : "text-gray-400 hover:text-gray-300"
             }`}
           >
-            Archived
-            {activeTab === "archived" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
+            Requests
+            {activeTab === "requests" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary/80"></div>
             )}
           </button>
         </div>
 
         {/* Search & Action Bar */}
-        <div className="p-4 flex items-center justify-between">
+        <div className="p-3 flex items-center gap-2">
           <div className="relative group flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 group-focus-within:text-primary/80 transition-colors" />
             <input
               type="text"
               placeholder={`Search ${activeTab}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-base-300 text-white rounded-xl text-sm 
-              focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all
-              placeholder:text-gray-400"
+              className="w-full pl-9 pr-3 py-2 bg-base-300/50 rounded-lg text-sm 
+              focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all
+              placeholder:text-gray-500"
             />
           </div>
           
           {activeTab === "messages" && (
-            <motion.button 
-          
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-circle btn-sm ml-2 bg-primary text-white hover:bg-primary/90 border-none"
+            <button 
+              className="btn btn-sm bg-primary/90 hover:bg-primary border-none text-primary-content rounded-lg w-10 h-8 p-0 flex items-center justify-center"
+              title="New message"
             >
               <Plus size={16} />
-            </motion.button>
+            </button>
           )}
           
-          {activeTab === "friends" && (
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddFriend(true)}
-              className="btn btn-circle btn-sm ml-2 bg-primary text-white hover:bg-primary/90 border-none"
+          {activeTab === "groups" && (
+            <button 
+              className="btn btn-sm bg-primary/90 hover:bg-primary border-none text-primary-content rounded-lg w-10 h-8 p-0 flex items-center justify-center"
+              title="Create group" 
             >
-              <UserPlus size={16} />
-            </motion.button>
+              <Plus size={16} />
+            </button>
           )}
           
-          {activeTab === "archived" && (
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-circle btn-sm ml-2 bg-base-300 text-primary hover:bg-base-300/80 border-none"
+          {activeTab === "requests" && (
+            <button 
+              className="btn btn-sm bg-primary/90 hover:bg-primary border-none text-primary-content rounded-lg w-10 h-8 p-0 flex items-center justify-center"
+              title={showAddFriend ? "Hide form" : "Add friend"}
+              onClick={() => setShowAddFriend(!showAddFriend)}
             >
-              <Archive size={16} />
-            </motion.button>
+              {showAddFriend ? <X size={16} /> : <UserPlus size={16} />}
+            </button>
           )}
         </div>
 
         {/* Content based on active tab */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-1">
-          {/* Add Friend Form */}
-          {showAddFriend && (
-            <div className="mb-3">
-              <AddFriendForm onClose={() => setShowAddFriend(false)} />
-            </div>
-          )}
-          
+        <div className="flex-1 overflow-y-auto px-2 pt-1 space-y-1.5">
           {/* Messages Tab Content */}
           {activeTab === "messages" && (
             <>
+              {filteredUsers.map((user) => (
+                <Friend
+                  key={user._id}
+                  user={user}
+                  onlineUsers={onlineUsers}
+                  onStartChat={setSelectedUser}
+                />
+              ))}
+              
+              {filteredUsers.length === 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center text-gray-400 py-10 px-4"
+                >
+                  <div className="bg-base-300/70 size-14 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <MessageCircle className="size-7 opacity-50" />
+                  </div>
+                  <h3 className="font-medium text-base-content/90 mb-1">No messages yet</h3>
+                  <p className="text-sm text-base-content/60">
+                    {searchQuery 
+                      ? "Try a different search term" 
+                      : friends.length > 0 
+                        ? "Start a conversation with a friend" 
+                        : "Add friends to start messaging"}
+                  </p>
+                  {friends.length === 0 && (
+                    <button
+                      onClick={() => setActiveTab("requests")}
+                      className="mt-3 btn btn-sm bg-primary/90 hover:bg-primary border-none text-primary-content rounded-lg"
+                    >
+                      <UserPlus size={14} className="mr-1" />
+                      Add Friends
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </>
+          )}
+          
+          {/* Group Chat Tab Content */}
+          {activeTab === "groups" && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center text-gray-400 py-10 px-4"
+            >
+              <div className="bg-base-300/70 size-14 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Users className="size-7 opacity-50" />
+              </div>
+              <h3 className="font-medium text-base-content/90 mb-1">Group Chats Coming Soon</h3>
+              <p className="text-sm text-base-content/60">
+                Group chat functionality will be available in the next update.
+              </p>
+            </motion.div>
+          )}
+          
+          {/* Requests Tab Content */}
+          {activeTab === "requests" && (
+            <>
+              {showAddFriend && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="mb-2"
+                >
+                  <AddFriendForm onClose={() => setShowAddFriend(false)} />
+                </motion.div>
+              )}
+            
               {console.log("Final sorted requests before render:", sortedRequests)}
               {Array.isArray(sortedRequests) && sortedRequests.map((request) => {
                 console.log("Rendering individual request:", request);
@@ -1340,93 +1403,28 @@ const Sidebar = () => {
                 );
               })}
 
-              {filteredRequests.length === 0 && (
+              {filteredRequests.length === 0 && !showAddFriend && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-center text-gray-400 py-12 px-4"
+                  className="text-center text-gray-400 py-10 px-4"
                 >
-                  <div className="bg-base-300 size-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageCircle className="size-8 opacity-50" />
+                  <div className="bg-base-300/70 size-14 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <UserPlus className="size-7 opacity-50" />
                   </div>
-                  <h3 className="font-medium text-white mb-1">No pending requests</h3>
-                  <p className="text-sm">
+                  <h3 className="font-medium text-base-content/90 mb-1">No pending requests</h3>
+                  <p className="text-sm text-base-content/60">
                     {searchQuery 
                       ? "Try a different search term" 
-                      : "No friend requests yet"}
+                      : "No friend requests yet. Click the + button to add friends."}
                   </p>
-                </motion.div>
-              )}
-            </>
-          )}
-          
-          {/* Friends Tab Content */}
-          {activeTab === "friends" && (
-            <>
-              {filteredFriends.map((user) => (
-                <Friend
-                  key={user._id}
-                  user={user}
-                  onlineUsers={onlineUsers}
-                  onStartChat={setSelectedUser}
-                />
-              ))}
-              
-              {filteredFriends.length === 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center text-gray-400 py-12 px-4"
-                >
-                  <div className="bg-base-300 size-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="size-8 opacity-50" />
-                  </div>
-                  <h3 className="font-medium text-white mb-1">No friends found</h3>
-                  <p className="text-sm">
-                    {searchQuery 
-                      ? "Try a different search term" 
-                      : "Add a friend to start chatting"}
-                  </p>
-                  <button 
+                  <button
                     onClick={() => setShowAddFriend(true)}
-                    className="mt-4 btn btn-sm bg-primary hover:bg-primary/90 text-white border-none"
+                    className="mt-3 btn btn-sm bg-primary/90 hover:bg-primary border-none text-primary-content rounded-lg"
                   >
                     <UserPlus size={14} className="mr-1" />
                     Add Friend
                   </button>
-                </motion.div>
-              )}
-            </>
-          )}
-          
-          {/* Archived Tab Content */}
-          {activeTab === "archived" && (
-            <>
-              {archivedChats.map((user) => (
-                <Contact
-                  key={user._id}
-                  user={user}
-                  selectedUserId={selectedUser?._id}
-                  onlineUsers={onlineUsers}
-                  messagePreview={getLatestMessagePreview(user._id)}
-                  onSelect={setSelectedUser}
-                  isArchived={true}
-                />
-              ))}
-              
-              {archivedChats.length === 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center text-gray-400 py-12 px-4"
-                >
-                  <div className="bg-base-300 size-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Archive className="size-8 opacity-50" />
-                  </div>
-                  <h3 className="font-medium text-white mb-1">No archived chats</h3>
-                  <p className="text-sm">
-                    Archived conversations will appear here
-                  </p>
                 </motion.div>
               )}
             </>

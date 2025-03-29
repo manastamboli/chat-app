@@ -84,12 +84,19 @@ export const useAuthStore = create((set, get) => ({
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
     try {
-      const res = await axiosInstance.put("/auth/update-profile", data);
+      const res = await axiosInstance.put(
+        "/auth/update-profile", 
+        data,
+        // If using FormData, we need to set the correct content type
+        data instanceof FormData 
+          ? { headers: { 'Content-Type': 'multipart/form-data' } }
+          : {}
+      );
       set({ authUser: res.data });
       toast.success("Profile updated successfully");
     } catch (error) {
-      console.log("error in update profile:", error);
-      toast.error(error.response.data.message);
+      console.log("Error in update profile:", error);
+      toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
       set({ isUpdatingProfile: false });
     }
@@ -143,22 +150,62 @@ export const useAuthStore = create((set, get) => ({
     });
 
     socket.on("chatRequestResponse",({request})=>{
-      if(request.status==="accepted"){
+      if(request && request.status==="accepted"){
         set(state=>({
           acceptedRequests:[...state.acceptedRequests,request],
           chatRequests: state.chatRequests.filter(req=>req._id !== request._id)
-        }
-      ))
-      console.log("chatRequestResponse in useAuthStore",{request});
-      console.log("Accepted requests in useAuthStore",get().acceptedRequests);
-      }else{
+        }));
+        console.log("chatRequestResponse in useAuthStore",{request});
+        console.log("Accepted requests in useAuthStore",get().acceptedRequests);
+      }else if(request){
         set(state=>({
           chatRequests: state.chatRequests.filter(req=>req._id !== request._id)
-        }))
+        }));
+      }else{
+        console.error("Invalid request object received in chatRequestResponse");
       }
-    })
+    });
+    
+    socket.on("chatRequestError", ({message, requestId}) => {
+      console.error(`Chat request error: ${message}`);
+      toast.error(`Failed to process chat request: ${message}`);
+      
+      // Remove the request from UI to prevent further interaction with invalid request
+      if (requestId) {
+        set(state => ({
+          chatRequests: state.chatRequests.filter(req => req._id !== requestId)
+        }));
+      }
+    });
 
+  },
 
+  // Function to verify and clean up chat requests
+  verifyChatRequests: async () => {
+    try {
+      const { chatRequests } = get();
+      
+      // If no requests, nothing to verify
+      if (!chatRequests || chatRequests.length === 0) return;
+      
+      // Get IDs of all chat requests in state
+      const requestIds = chatRequests.map(req => req._id);
+      
+      // Verify these IDs exist in database
+      const res = await axiosInstance.post("/auth/verify-requests", { requestIds });
+      const validRequestIds = res.data.validRequestIds;
+      
+      // Filter out invalid requests
+      if (validRequestIds && Array.isArray(validRequestIds)) {
+        set(state => ({
+          chatRequests: state.chatRequests.filter(req => 
+            validRequestIds.includes(req._id)
+          )
+        }));
+      }
+    } catch (error) {
+      console.error("Error verifying chat requests:", error);
+    }
   },
 
   sendChatRequest: async(receiverId)=>{
@@ -184,6 +231,11 @@ export const useAuthStore = create((set, get) => ({
             requestId,
             status
           })
+        }
+        else{
+          console.log("socket is not connected");
+          const res=await axiosInstance.put('/auth/updatechatrequest',{requestId,status});
+          console.log("res",res);
         }   
         console.log("respondToChatRequest in useAuthStore",{requestId,status});   
     } catch (error) {

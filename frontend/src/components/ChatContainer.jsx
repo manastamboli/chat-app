@@ -1,5 +1,6 @@
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState, useCallback, memo } from "react";
+import CryptoJS from "crypto-js";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -11,6 +12,17 @@ import { motion, AnimatePresence } from "framer-motion";
 // Memoized Message component for better performance
 const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfilePic }) => {
   const [showFullTime, setShowFullTime] = useState(false);
+  
+  // Decrypt message text if it exists
+  let decryptedText = "";
+  try {
+    if (message.text) {
+      decryptedText = CryptoJS.AES.decrypt(message.text, "key").toString(CryptoJS.enc.Utf8);
+    }
+  } catch (error) {
+    console.error("Error decrypting message:", error);
+    decryptedText = "[Decryption error]";
+  }
   
   return (
     <motion.div
@@ -46,7 +58,7 @@ const Message = memo(({ message, isCurrentUser, userProfilePic, otherUserProfile
                 />
               </div>
             )}
-            {message.text && <p>{message.text}</p>}
+            {message.text && <p>{decryptedText}</p>}
           </div>
           <span 
             className="text-xs text-base-content/60 mt-1 cursor-pointer"

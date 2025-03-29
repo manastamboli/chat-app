@@ -201,3 +201,50 @@ export const getGroupMessages=async(req,res)=>{
   }
 }
 
+export const deleteChat = async (req, res) => {
+  try {
+    const { id: chatPartnerId } = req.params;
+    const userId = req.user._id;
+
+    // Delete all messages between these two users
+    await Message.deleteMany({
+      $or: [
+        { senderId: userId, receiverId: chatPartnerId },
+        { senderId: chatPartnerId, receiverId: userId }
+      ]
+    });
+
+    res.status(200).json({ message: "Chat deleted successfully" });
+  } catch (error) {
+    console.log("Error in deleteChat controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const clearChat = async (req, res) => {
+  try {
+    const { id: chatPartnerId } = req.params;
+    const userId = req.user._id;
+    const { before } = req.query; // Optional: timestamp to clear messages before a certain date
+
+    const query = {
+      $or: [
+        { senderId: userId, receiverId: chatPartnerId },
+        { senderId: chatPartnerId, receiverId: userId }
+      ]
+    };
+
+    // If 'before' timestamp is provided, add it to the query
+    if (before) {
+      query.createdAt = { $lt: new Date(before) };
+    }
+
+    await Message.deleteMany(query);
+
+    res.status(200).json({ message: "Chat cleared successfully" });
+  } catch (error) {
+    console.log("Error in clearChat controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+

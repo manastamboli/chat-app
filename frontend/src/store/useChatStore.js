@@ -391,4 +391,34 @@ export const useChatStore = create((set, get) => ({
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),
+
+  deleteChat: async (userId) => {
+    try {
+      await axiosInstance.delete(`/api/messages/${userId}`);
+      set((state) => ({
+        messages: state.messages.filter(
+          (message) => 
+            !(message.senderId === userId || message.receiverId === userId)
+        ),
+      }));
+      toast.success("Chat deleted successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Error deleting chat");
+    }
+  },
+
+  clearChat: async (userId) => {
+    try {
+      await axiosInstance.delete(`/api/messages/${userId}/clear`);
+      set((state) => ({
+        messages: state.messages.filter(
+          (message) => 
+            !(message.senderId === userId || message.receiverId === userId)
+        ),
+      }));
+      toast.success("Chat cleared successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Error clearing chat");
+    }
+  },
 }));
